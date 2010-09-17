@@ -21,6 +21,7 @@
 #define kzalloc(size, flags)	calloc(size, 1)
 #define vmalloc(size)		malloc(size)
 #define kfree(ptr)		free(ptr)
+#define kstrdup(s, flags)	strdup(s)
 #define vfree(ptr)		free(ptr)
 
 #define DECLARE_WAITQUEUE(...)	do { } while (0)
