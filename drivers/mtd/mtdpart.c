@@ -575,19 +575,19 @@ int add_mtd_partitions(struct mtd_info *master,
 	return 0;
 }
 
-int mtd_is_master(struct mtd_info *mtd)
+int mtd_is_partition(struct mtd_info *mtd)
 {
 	struct mtd_part *part;
-	int nopart = 0;
+	int ispart = 0;
 
 	if (mtd_partitions.next == NULL)
 		return 0;
 
 	list_for_each_entry(part, &mtd_partitions, list)
 		if (&part->mtd == mtd) {
-			nopart = 1;
+			ispart = 1;
 			break;
 		}
 
-	return nopart;
+	return ispart;
 }
