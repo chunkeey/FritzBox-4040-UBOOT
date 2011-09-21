@@ -8,6 +8,7 @@
 #define __MTD_MTD_H__
 
 #include <linux/types.h>
+#include <asm/errno.h>
 #include <div64.h>
 #include <linux/mtd/mtd-abi.h>
 
@@ -324,5 +325,17 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 			printk(KERN_INFO args);		\
 	} while(0)
 #endif /* CONFIG_MTD_DEBUG */
+
+static inline int mtd_is_bitflip(int err) {
+	return err == -EUCLEAN;
+}
+
+static inline int mtd_is_eccerr(int err) {
+	return err == -EBADMSG;
+}
+
+static inline int mtd_is_bitflip_or_eccerr(int err) {
+	return mtd_is_bitflip(err) || mtd_is_eccerr(err);
+}
 
 #endif /* __MTD_MTD_H__ */
