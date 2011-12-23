@@ -236,6 +236,12 @@ struct mtd_info {
 	void (*put_device) (struct mtd_info *mtd);
 };
 
+static inline int mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf)
+{
+	return mtd->read(mtd, from, len, retlen, buf);
+}
+
 static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
 {
 	do_div(sz, mtd->erasesize);

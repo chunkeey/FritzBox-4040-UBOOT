@@ -68,7 +68,7 @@ void env_relocate_spec(void)
 	/* Check OneNAND exist */
 	if (mtd->writesize)
 		/* Ignore read fail */
-		mtd->read(mtd, env_addr, ONENAND_MAX_ENV_SIZE,
+		mtd_read(mtd, env_addr, ONENAND_MAX_ENV_SIZE,
 				&retlen, (u_char *)buf);
 	else
 		mtd->writesize = MAX_ONENAND_PAGESIZE;

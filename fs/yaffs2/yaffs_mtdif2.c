@@ -122,7 +122,7 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device * dev, int chunkInNAND,
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,17))
 	if (data && !tags)
-		retval = mtd->read(mtd, addr, dev->nDataBytesPerChunk,
+		retval = mtd_read(mtd, addr, dev->nDataBytesPerChunk,
 				&dummy, data);
 	else if (tags) {
 		ops.mode = MTD_OOB_AUTO;
@@ -149,7 +149,7 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device * dev, int chunkInNAND,
 	} else {
 		if (data)
 			retval =
-			    mtd->read(mtd, addr, dev->nDataBytesPerChunk, &dummy,
+			    mtd_read(mtd, addr, dev->nDataBytesPerChunk, &dummy,
 				      data);
 		if (tags)
 			retval =

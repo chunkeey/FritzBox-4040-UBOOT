@@ -282,7 +282,7 @@ static int onenand_block_test(u32 start, u32 size)
 			goto next;
 		}
 
-		ret = mtd->read(mtd, ofs, blocksize, &retlen, verify_buf);
+		ret = mtd_read(mtd, ofs, blocksize, &retlen, verify_buf);
 		if (ret) {
 			printk("Read failed 0x%x, %d\n", (u32)ofs, ret);
 			goto next;

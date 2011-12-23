@@ -173,7 +173,7 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 
 	addr = (loff_t)pnum * ubi->peb_size + offset;
 retry:
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
+	err = mtd_read(ubi->mtd, addr, len, &read, buf);
 	if (err) {
 		const char *errstr = (err == -EBADMSG) ? " (ECC error)" : "";
 
@@ -1354,7 +1354,7 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
 	mutex_lock(&ubi->dbg_buf_mutex);
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, ubi->dbg_peb_buf);
+	err = mtd_read(ubi->mtd, addr, len, &read, ubi->dbg_peb_buf);
 	if (err && err != -EUCLEAN) {
 		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
 			"read %u bytes", err, len, pnum, offset, (unsigned int)read);

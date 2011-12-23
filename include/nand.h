@@ -57,7 +57,7 @@ extern nand_info_t nand_info[];
 
 static inline int nand_read(nand_info_t *info, loff_t ofs, size_t *len, u_char *buf)
 {
-	return info->read(info, ofs, *len, (size_t *)len, buf);
+	return mtd_read(info, ofs, *len, (size_t *)len, buf);
 }
 
 static inline int nand_write(nand_info_t *info, loff_t ofs, size_t *len, u_char *buf)
