@@ -335,7 +335,7 @@ int get_nand_env_oob(nand_info_t *nand, unsigned long *result)
 	ops.ooblen	= ENV_OFFSET_SIZE;
 	ops.oobbuf	= (void *)oob_buf;
 
-	ret = nand->read_oob(nand, ENV_OFFSET_SIZE, &ops);
+	ret = mtd_read_oob(nand, ENV_OFFSET_SIZE, &ops);
 	if (ret) {
 		printf("error reading OOB block 0\n");
 		return ret;

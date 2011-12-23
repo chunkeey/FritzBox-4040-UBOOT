@@ -64,7 +64,7 @@ int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, 
 	if (!ooblen)
 		ops.oobbuf = NULL;
 
-	return mtd->read_oob(mtd, from, &ops);
+	return mtd_read_oob(mtd, from, &ops);
 }
 #endif
 
@@ -96,7 +96,7 @@ static int nand_dump(nand_info_t *nand, ulong off, int only_oob, int repeat)
 	ops.len = nand->writesize;
 	ops.ooblen = nand->oobsize;
 	ops.mode = MTD_OOB_RAW;
-	i = nand->read_oob(nand, addr, &ops);
+	i = mtd_read_oob(nand, addr, &ops);
 	if (i < 0) {
 		printf("Error (%d) reading page %08lx\n", i, off);
 		free(datbuf);
@@ -451,7 +451,7 @@ static int raw_access(nand_info_t *nand, ulong addr, loff_t off, ulong count,
 		};
 
 		if (read)
-			ret = nand->read_oob(nand, off, &ops);
+			ret = mtd_read_oob(nand, off, &ops);
 		else
 			ret = nand->write_oob(nand, off, &ops);
 
@@ -731,7 +731,7 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			};
 
 			if (read)
-				ret = nand->read_oob(nand, off, &ops);
+				ret = mtd_read_oob(nand, off, &ops);
 			else
 				ret = nand->write_oob(nand, off, &ops);
 		} else if (raw) {

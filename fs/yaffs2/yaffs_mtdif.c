@@ -167,7 +167,7 @@ int nandmtd_ReadChunkFromNAND(yaffs_Device * dev, int chunkInNAND, __u8 * data,
 		ops.datbuf = data;
 		ops.ooboffs = 0;
 		ops.oobbuf = spareAsBytes;
-		retval = mtd->read_oob(mtd, addr, &ops);
+		retval = mtd_read_oob(mtd, addr, &ops);
 		if (dev->useNANDECC)
 			translate_oob2spare(spare, spareAsBytes);
 	}

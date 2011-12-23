@@ -131,7 +131,7 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device * dev, int chunkInNAND,
 		ops.ooboffs = 0;
 		ops.datbuf = data;
 		ops.oobbuf = dev->spareBuffer;
-		retval = mtd->read_oob(mtd, addr, &ops);
+		retval = mtd_read_oob(mtd, addr, &ops);
 	}
 #else
 	if (data && tags) {

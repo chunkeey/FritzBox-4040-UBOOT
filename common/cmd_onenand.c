@@ -97,7 +97,7 @@ static int onenand_block_read(loff_t from, size_t len,
 			ops.datbuf = buf;
 
 		ops.retlen = 0;
-		ret = mtd->read_oob(mtd, ofs, &ops);
+		ret = mtd_read_oob(mtd, ofs, &ops);
 		if (ret) {
 			printk("Read failed 0x%x, %d\n", (u32)ofs, ret);
 			ofs += blocksize;
@@ -324,7 +324,7 @@ static int onenand_dump(struct mtd_info *mtd, ulong off, int only_oob)
 	ops.len = mtd->writesize;
 	ops.ooblen = mtd->oobsize;
 	ops.retlen = 0;
-	i = mtd->read_oob(mtd, addr, &ops);
+	i = mtd_read_oob(mtd, addr, &ops);
 	if (i < 0) {
 		printf("Error (%d) reading page %08lx\n", i, off);
 		free(datbuf);

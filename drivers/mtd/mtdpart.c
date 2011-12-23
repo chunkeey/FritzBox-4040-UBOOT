@@ -78,7 +78,7 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 	if (ops->datbuf && from + ops->len > mtd->size)
 		return -EINVAL;
-	res = part->master->read_oob(part->master, from + part->offset, ops);
+	res = mtd_read_oob(part->master, from + part->offset, ops);
 
 	if (unlikely(res)) {
 		if (res == -EUCLEAN)
