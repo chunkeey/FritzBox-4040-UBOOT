@@ -331,6 +331,7 @@ struct nand_hw_control {
  * @steps:	number of ecc steps per page
  * @size:	data bytes per ecc step
  * @bytes:	ecc bytes per step
+ * @strength:	max number of correctible bits per ECC step
  * @total:	total number of ecc bytes per page
  * @prepad:	padding information for syndrome based ecc generators
  * @postpad:	padding information for syndrome based ecc generators
@@ -356,6 +357,7 @@ struct nand_ecc_ctrl {
 	int size;
 	int bytes;
 	int total;
+	int strength;
 	int prepad;
 	int postpad;
 	struct nand_ecclayout	*layout;
