@@ -1376,8 +1376,10 @@ int board_nand_init(struct nand_chip *this)
 		this->ecc.write_oob = mxc_nand_write_oob_syndrome;
 		this->ecc.bytes = 9;
 		this->ecc.prepad = 7;
+		this->ecc.strength = 4;
 	} else {
 		this->ecc.mode = NAND_ECC_HW;
+		this->ecc.strength = 1;
 	}
 
 	host->pagesize_2k = 0;

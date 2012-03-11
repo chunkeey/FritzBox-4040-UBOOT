@@ -3046,6 +3046,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		if (!chip->ecc.size)
 			chip->ecc.size = 256;
 		chip->ecc.bytes = 3;
+		chip->ecc.strength = 1;
 		break;
 
 	case NAND_ECC_SOFT_BCH:
@@ -3078,6 +3079,8 @@ int nand_scan_tail(struct mtd_info *mtd)
 					       &chip->ecc.layout);
 		if (!chip->ecc.priv)
 			printk(KERN_WARNING "BCH ECC initialization failed!\n");
+		chip->ecc.strength =
+			chip->ecc.bytes*8 / fls(8*chip->ecc.size);
 
 		break;
 
@@ -3092,6 +3095,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		chip->ecc.write_oob = nand_write_oob_std;
 		chip->ecc.size = mtd->writesize;
 		chip->ecc.bytes = 0;
+		chip->ecc.strength = 0;
 		break;
 
 	default:
@@ -3167,8 +3171,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->block_isbad = nand_block_isbad;
 	mtd->block_markbad = nand_block_markbad;
 
-	/* propagate ecc.layout to mtd_info */
+	/* propagate ecc info to mtd_info */
 	mtd->ecclayout = chip->ecc.layout;
+	mtd->ecc_strength = chip->ecc.strength;
 
 	/* Check, if we should skip the bad block table scan */
 	if (chip->options & NAND_SKIP_BBTSCAN)

@@ -452,6 +452,7 @@ int fsmc_nand_init(struct nand_chip *nand)
 	switch (fsmc_version) {
 	case FSMC_VER8:
 		nand->ecc.bytes = 13;
+		nand->ecc.strength = 8;
 		nand->ecc.correct = fsmc_bch8_correct_data;
 		nand->ecc.read_page = fsmc_read_page_hwecc;
 		if (mtd->writesize == 512)
@@ -466,6 +467,7 @@ int fsmc_nand_init(struct nand_chip *nand)
 		break;
 	default:
 		nand->ecc.bytes = 3;
+		nand->ecc.strength = 1;
 		nand->ecc.layout = &fsmc_ecc1_layout;
 		nand->ecc.correct = nand_correct_data;
 		break;

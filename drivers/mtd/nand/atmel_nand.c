@@ -291,6 +291,7 @@ int board_nand_init(struct nand_chip *nand)
 	nand->ecc.hwctl = atmel_nand_hwctl;
 	nand->ecc.read_page = atmel_nand_read_page;
 	nand->ecc.bytes = 4;
+	nand->ecc.strength = 1;
 #endif
 
 #ifdef CONFIG_ATMEL_NAND_HWECC

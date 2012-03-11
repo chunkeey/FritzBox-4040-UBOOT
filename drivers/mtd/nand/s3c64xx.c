@@ -285,6 +285,7 @@ int board_nand_init(struct nand_chip *nand)
 	nand->ecc.mode		= NAND_ECC_HW;
 	nand->ecc.size		= CONFIG_SYS_NAND_ECCSIZE;
 	nand->ecc.bytes		= CONFIG_SYS_NAND_ECCBYTES;
+	nand->ecc.strength	= 1;
 #else
 	nand->ecc.mode		= NAND_ECC_SOFT;
 #endif /* ! CONFIG_SYS_S3C_NAND_HWECC */

@@ -211,6 +211,7 @@ int board_nand_init(struct nand_chip *chip)
 	/* ECC: follow the hardware-defined rulse, but do it in sw */
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.bytes = 3;
+	chip->ecc.strength = 1;
 	chip->ecc.size = 512;
 	chip->ecc.layout = &nomadik_ecc_layout;
 	chip->ecc.calculate = nomadik_ecc_calculate;

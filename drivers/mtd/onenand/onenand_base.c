@@ -2776,6 +2776,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->oobavail = this->ecclayout->oobavail;
 
 	mtd->ecclayout = this->ecclayout;
+	mtd->ecc_strength = 1;
 
 	/* Unlock whole block */
 	onenand_unlock_all(mtd);

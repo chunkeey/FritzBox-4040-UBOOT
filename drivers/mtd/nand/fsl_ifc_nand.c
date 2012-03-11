@@ -828,11 +828,13 @@ int board_nand_init(struct nand_chip *nand)
 			bbt_mirror_descr.offs = 0;
 		}
 
+		nand->ecc.strength = 4;
 		priv->bufnum_mask = 15;
 		break;
 
 	case CSOR_NAND_PGS_2K:
 		layout = &oob_2048_ecc4;
+		nand->ecc.strength = 4;
 		priv->bufnum_mask = 3;
 		break;
 
@@ -840,8 +842,10 @@ int board_nand_init(struct nand_chip *nand)
 		if ((csor & CSOR_NAND_ECC_MODE_MASK) ==
 		    CSOR_NAND_ECC_MODE_4) {
 			layout = &oob_4096_ecc4;
+			nand->ecc.strength = 4;
 		} else {
 			layout = &oob_4096_ecc8;
+			nand->ecc.strength = 8;
 			nand->ecc.bytes = 16;
 		}
 
