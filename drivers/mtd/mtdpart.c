@@ -414,6 +414,8 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 	}
 
 	slave->mtd.ecclayout = master->ecclayout;
+	slave->mtd.bitflip_threshold = master->bitflip_threshold;
+
 	if (master->block_isbad) {
 		uint64_t offs = 0;
 

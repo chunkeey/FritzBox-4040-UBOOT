@@ -143,6 +143,13 @@ struct mtd_info {
 	/* max number of correctible bit errors per ecc step */
 	unsigned int ecc_strength;
 
+	/*
+	 * read ops return -EUCLEAN if max number of bitflips corrected on any
+	 * one region comprising an ecc step equals or exceeds this value.
+	 * Settable by driver, else defaults to ecc_strength.
+	 */
+	unsigned int bitflip_threshold;
+
 	/* Data for variable erase regions. If numeraseregions is zero,
 	 * it means that the whole device has erasesize as given above.
 	 */
