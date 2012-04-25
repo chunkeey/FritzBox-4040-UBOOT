@@ -3041,8 +3041,13 @@ int nand_scan_tail(struct mtd_info *mtd)
 		if (!chip->ecc.write_oob)
 			chip->ecc.write_oob = nand_write_oob_syndrome;
 
-		if (mtd->writesize >= chip->ecc.size)
+		if (mtd->writesize >= chip->ecc.size) {
+			if (!chip->ecc.strength) {
+				printk(KERN_WARNING "Driver must set ecc.strength when using hardware ECC\n");
+				BUG();
+			}
 			break;
+		}
 		printk(KERN_WARNING "%d byte HW ECC not possible on "
 		       "%d byte page size, fallback to SW ECC\n",
 		       chip->ecc.size, mtd->writesize);
@@ -3095,7 +3100,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		if (!chip->ecc.priv)
 			printk(KERN_WARNING "BCH ECC initialization failed!\n");
 		chip->ecc.strength =
-			chip->ecc.bytes*8 / fls(8*chip->ecc.size);
+			chip->ecc.bytes * 8 / fls(8 * chip->ecc.size);
 
 		break;
 
