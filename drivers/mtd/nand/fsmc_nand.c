@@ -361,6 +361,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *ecc_code = chip->buffers->ecccode;
 	int off, len, group = 0;
 	uint8_t oob[13] __attribute__ ((aligned (2)));
+	unsigned int max_bitflips = 0;
 
 	/* Differentiate between small and large page ecc place definitions */
 	if (mtd->writesize == 512)
@@ -396,13 +397,15 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 		stat = chip->ecc.correct(mtd, p, &ecc_code[i],
 				&ecc_calc[i]);
-		if (stat < 0)
+		if (stat < 0) {
 			mtd->ecc_stats.failed++;
-		else
+		} else {
 			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		}
 	}
 
-	return 0;
+	return max_bitflips;
 }
 
 int fsmc_nand_init(struct nand_chip *nand)

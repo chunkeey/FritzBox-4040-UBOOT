@@ -633,6 +633,7 @@ static int mxc_nand_read_page_syndrome(struct mtd_info *mtd,
 	int eccsteps = chip->ecc.steps;
 	uint8_t *p = buf;
 	uint8_t *oob = chip->oob_poi;
+	unsigned int max_bitflips = 0;
 
 	MTDDEBUG(MTD_DEBUG_LEVEL1, "Reading page %u to buf %p oob %p\n",
 	      host->page_addr, buf, oob);
@@ -654,10 +655,12 @@ static int mxc_nand_read_page_syndrome(struct mtd_info *mtd,
 
 		stat = chip->ecc.correct(mtd, p, oob, NULL);
 
-		if (stat < 0)
+		if (stat < 0) {
 			mtd->ecc_stats.failed++;
-		else
+		} else {
 			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		}
 		oob += eccbytes;
 
 		if (chip->ecc.postpad) {
@@ -684,7 +687,7 @@ static int mxc_nand_read_page_syndrome(struct mtd_info *mtd,
 		oob += eccbytes + chip->ecc.postpad;
 	}
 	_mxc_nand_enable_hwecc(mtd, 1);
-	return 0;
+	return max_bitflips;
 }
 
 static int mxc_nand_write_oob_syndrome(struct mtd_info *mtd,
