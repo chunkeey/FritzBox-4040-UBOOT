@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <asm/errno.h>
+#include <linux/compiler.h>
 #include <div64.h>
 #include <linux/mtd/mtd-abi.h>
 
@@ -250,7 +251,19 @@ struct mtd_info {
 static inline int mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 			   size_t *retlen, u_char *buf)
 {
-	return mtd->read(mtd, from, len, retlen, buf);
+	int ret_code;
+
+	/*
+	 * In the absence of an error, drivers return a non-negative integer
+	 * representing the maximum number of bitflips that were corrected on
+	 * any one ecc region (if applicable; zero otherwise).
+	 */
+	ret_code = mtd->read(mtd, from, len, retlen, buf);
+	if (unlikely(ret_code < 0))
+		return ret_code;
+	if (mtd->ecc_strength == 0)
+		return 0;	/* device lacks ecc */
+	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 
 static inline int mtd_read_oob(struct mtd_info *mtd, loff_t from,
