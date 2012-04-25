@@ -140,7 +140,7 @@ struct mtd_info {
 	/* ecc layout structure pointer - read only ! */
 	struct nand_ecclayout *ecclayout;
 
-	/* max number of correctible bit errors per writesize */
+	/* max number of correctible bit errors per ecc step */
 	unsigned int ecc_strength;
 
 	/* Data for variable erase regions. If numeraseregions is zero,
