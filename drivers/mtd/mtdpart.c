@@ -575,7 +575,7 @@ int add_mtd_partitions(struct mtd_info *master,
 	return 0;
 }
 
-int mtd_is_partition(struct mtd_info *mtd)
+int mtd_is_partition(const struct mtd_info *mtd)
 {
 	struct mtd_part *part;
 	int ispart = 0;
