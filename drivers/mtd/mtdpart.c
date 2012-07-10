@@ -591,3 +591,12 @@ int mtd_is_partition(const struct mtd_info *mtd)
 
 	return ispart;
 }
+
+/* Returns the size of the entire flash chip */
+uint64_t mtd_get_device_size(const struct mtd_info *mtd)
+{
+	if (!mtd_is_partition(mtd))
+		return mtd->size;
+
+	return PART(mtd)->master->size;
+}
