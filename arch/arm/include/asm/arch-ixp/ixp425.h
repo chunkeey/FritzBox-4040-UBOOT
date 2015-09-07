@@ -14,7 +14,6 @@
 #ifndef _ASM_ARM_IXP425_H_
 #define _ASM_ARM_IXP425_H_
 
-#define BIT(x)	(1<<(x))
 
 /* FIXME: Only this does work for u-boot... find out why... [RS] */
 #define UBOOT_REG_FIX 1

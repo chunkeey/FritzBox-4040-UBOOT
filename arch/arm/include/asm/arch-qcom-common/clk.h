@@ -73,7 +73,6 @@
 #define PCIE_TIMEOUT_CNT	100
 #define ENABLE			0x1
 #define DISABLE			0x0
-#define BIT(s)			(1<<s)
 
 void emmc_clock_config(int mode);
 void emmc_clock_disable(void);

@@ -28,7 +28,6 @@
 #define CLOCK_BASE		TNETV107X_CLOCK_CONTROL_BASE
 #define PSC_BASE		TNETV107X_PSC_BASE
 
-#define BIT(x)			(1 << (x))
 
 #define MAX_PREDIV		64
 #define MAX_POSTDIV		8
