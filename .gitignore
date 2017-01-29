@@ -1,0 +1,16 @@
+*.su
+*.s
+*.map
+*.o
+*.lds
+*.bin
+*.srec
+.*depend*
+include/generated/
+u-boot.lds
+u-boot.map
+tools/mkimage
+tools/dumpimage
+tools/mkenvimage
+tools/gen_eth_addr
+tools/envcrc
