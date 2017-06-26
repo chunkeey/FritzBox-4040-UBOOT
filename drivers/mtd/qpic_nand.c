@@ -1132,13 +1132,12 @@ qpic_nand_write_page(struct mtd_info *mtd, uint32_t pg_addr,
 	if (cfg_mode == NAND_CFG_RAW) {
 		cfg.cfg0 = dev->cfg0_raw;
 		cfg.cfg1 = dev->cfg1_raw;
-		cfg.cmd = NAND_CMD_PRG_PAGE;
 	} else {
 		cfg.cfg0 = dev->cfg0;
 		cfg.cfg1 = dev->cfg1;
-		cfg.cmd = NAND_CMD_PRG_PAGE_ALL;
 	}
 
+	cfg.cmd = NAND_CMD_PRG_PAGE;
 	cfg.exec = 1;
 
 	cfg.addr0 = pg_addr << 16;
@@ -1823,11 +1822,12 @@ static uint8_t *qpic_nand_write_oobbuf(struct mtd_info *mtd,
 	size_t write_ooblen;
 	struct qpic_nand_dev *dev = MTD_QPIC_NAND_DEV(mtd);
 
+	memset(dev->pad_oob, 0xFF, dev->oob_per_page);
+
 	if (ops->oobbuf == NULL)
 		return dev->pad_oob;
 
 	write_ooblen = ops->ooblen - ops->oobretlen;
-	memset(dev->pad_oob, 0xFF, dev->oob_per_page);
 
 	if (write_ooblen < dev->oob_per_page) {
 		memcpy(dev->pad_oob, ops->oobbuf + ops->oobretlen, write_ooblen);
