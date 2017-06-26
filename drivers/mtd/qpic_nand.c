@@ -525,19 +525,20 @@ qpic_nand_onfi_save_params(struct mtd_info *mtd,
 		return onfi_ret;
 }
 
-static void
+static int
 qpic_nand_save_config(struct mtd_info *mtd)
 {
 	struct qpic_nand_dev *dev = MTD_QPIC_NAND_DEV(mtd);
 	struct nand_chip *chip = MTD_NAND_CHIP(mtd);
+	uint32_t qpic_oob_size;
 
 	/* Save Configurations */
 	dev->cws_per_page = dev->page_size >> NAND_CW_DIV_RIGHT_SHIFT;
 
 	/* Verify that we have enough buffer to handle all the cws in a page. */
 	if (!(dev->cws_per_page <= QPIC_NAND_MAX_CWS_IN_PAGE)) {
-		printf("Not enough buffer to handle CW \n");
-		return;
+		printf("Not enough buffer to handle CW\n");
+		return -EINVAL;
 	}
 
 	/* Codeword Size = UD_SIZE_BYTES + ECC_PARITY_SIZE_BYTES
@@ -578,7 +579,21 @@ qpic_nand_save_config(struct mtd_info *mtd)
 		}
 	}
 
-	mtd->oobavail = (mtd->oobsize)/(dev->cws_per_page);
+	qpic_oob_size = dev->cw_size * dev->cws_per_page - mtd->writesize;
+
+	if (mtd->oobsize < qpic_oob_size) {
+		printf("qpic_nand: ecc data doesn't fit in available OOB area\n");
+		return -EINVAL;
+	}
+
+	if (mtd->oobsize > qpic_oob_size)
+		printf("qpic_nand: changing oobsize to %d from %d bytes\n",
+			qpic_oob_size,  mtd->oobsize);
+
+	/* Make the device OOB size as QPIC supported OOB size. */
+	mtd->oobsize = qpic_oob_size;
+	mtd->oobavail = (DATA_BYTES_IN_IMG_PER_CW - USER_DATA_BYTES_PER_CW) *
+				dev->cws_per_page;
 	dev->oob_per_page = mtd->oobavail;
 	/* BAD_BLOCK_BYTE_NUM = Page Size - (CW_PER_PAGE * Codeword Size) + 1
 	 * Note: Set CW_PER_PAGE to 1 less than the actual number.
@@ -600,7 +615,7 @@ qpic_nand_save_config(struct mtd_info *mtd)
 
 	dev->cfg0_raw = ((dev->cws_per_page- 1) << NAND_DEV0_CFG0_CW_PER_PAGE_SHIFT)
 					|(5 << NAND_DEV0_CFG0_ADDR_CYCLE_SHIFT)
-					|(528 << NAND_DEV0_CFG0_UD_SIZE_BYTES_SHIFT) //figure out the size of cw
+					|(dev->cw_size << NAND_DEV0_CFG0_UD_SIZE_BYTES_SHIFT) //figure out the size of cw
 					| (1 << NAND_DEV0_CFG0_DIS_STS_AFTER_WR_SHIFT);
 
 	dev->cfg1_raw = (7 <<  NAND_DEV0_CFG1_RECOVERY_CYCLES_SHIFT)
@@ -626,6 +641,8 @@ qpic_nand_save_config(struct mtd_info *mtd)
 	 */
 	memset(&fake_ecc_layout, 0, sizeof(fake_ecc_layout));
 	chip->ecc.layout = &fake_ecc_layout;
+
+	return 0;
 }
 
 /* Onfi probe should issue the following commands to the flash device:
@@ -1232,13 +1249,6 @@ static void qpic_nand_get_info_cfg(struct mtd_info *mtd, uint8_t cfg_id)
 	chunks = (mtd->writesize / CHUNK_SIZE);
 	spare_per_chunk = (8 << cfg_spare_size);
 	mtd->oobsize = dev->spare_size = (spare_per_chunk * chunks);
-
-	if ((mtd->oobsize > 64) && (mtd->writesize == 2048)) {
-		printf("ipq_nand: Found a 2K page device with"
-			" %d oobsize - changing oobsize to 64"
-			" bytes.\n", mtd->oobsize);
-		mtd->oobsize = 64;
-	}
 }
 
 /*
@@ -2166,7 +2176,9 @@ qpic_nand_init(struct qpic_nand_init_config *config)
 		qpic_nand_non_onfi_probe(mtd);
 
 	/* Save the RAW and read/write configs */
-	qpic_nand_save_config(mtd);
+	ret = qpic_nand_save_config(mtd);
+	if (ret < 0)
+		return ret;
 
 	dev = MTD_QPIC_NAND_DEV(mtd);
 	qpic_nand_mtd_params(mtd);
