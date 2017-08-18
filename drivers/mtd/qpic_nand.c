@@ -761,6 +761,45 @@ qpic_nand_onfi_probe_err:
 	return onfi_ret;
 }
 
+static int
+qpic_nand_reset(struct mtd_info *mtd)
+{
+	struct cmd_element *cmd_list_ptr = ce_array;
+	struct cmd_element *cmd_list_ptr_start = ce_array;
+	uint8_t num_desc = 0;
+	uint32_t status, nand_ret;
+	uint32_t exec_cmd = 1;
+	uint32_t flash_cmd = NAND_CMD_RESET_DEVICE;
+
+	/* Issue the Reset device command to the NANDc */
+	bam_add_cmd_element(cmd_list_ptr, NAND_FLASH_CMD, (uint32_t)flash_cmd,
+			    CE_WRITE_TYPE);
+	cmd_list_ptr++;
+	/* Execute the cmd */
+	bam_add_cmd_element(cmd_list_ptr, NAND_EXEC_CMD, (uint32_t)exec_cmd,
+			    CE_WRITE_TYPE);
+	cmd_list_ptr++;
+	/* Prepare the cmd desc for the above commands */
+	bam_add_one_desc(&bam, CMD_PIPE_INDEX,
+			(unsigned char *)cmd_list_ptr_start,
+			((uint32_t)cmd_list_ptr - (uint32_t)cmd_list_ptr_start),
+			BAM_DESC_NWD_FLAG | BAM_DESC_CMD_FLAG |
+			BAM_DESC_INT_FLAG);
+	/* Keep track of the number of desc added. */
+	num_desc++;
+	qpic_nand_wait_for_cmd_exec(num_desc);
+	status = qpic_nand_read_reg(NAND_FLASH_STATUS, 0);
+
+	/* Check for errors */
+	nand_ret = qpic_nand_check_status(mtd, status);
+	if (nand_ret) {
+		printf("Reset cmd status failed\n");
+		return nand_ret;
+	}
+
+	return nand_ret;
+}
+
 /* Enquues a desc for a flash cmd with NWD flag set:
  * cfg: Defines the configuration for the flash cmd.
  * start: Address where the command elements are added.
@@ -2168,6 +2207,10 @@ qpic_nand_init(struct qpic_nand_init_config *config)
 	chip->priv = &qpic_nand_dev;
     
 	qpic_bam_init(config);
+
+	ret = qpic_nand_reset(mtd);
+	if (ret < 0)
+		return ret;
 
 	ret = qpic_nand_onfi_probe(mtd);
 	if (ret < 0)

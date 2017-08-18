@@ -138,6 +138,7 @@
 #define NAND_CMD_PRG_PAGE_ALL				0x39
 #define NAND_CMD_BLOCK_ERASE				0x3A
 #define NAND_CMD_FETCH_ID				0x0B
+#define NAND_CMD_RESET_DEVICE				0x0D
 /* NAND Status errors */
 #define NAND_FLASH_MPU_ERR				(1 << 8)
 #define NAND_FLASH_TIMEOUT_ERR				(1 << 6)
