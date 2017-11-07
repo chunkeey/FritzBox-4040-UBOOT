@@ -46,6 +46,10 @@ struct bam_desc qpic_data_desc_fifo[QPIC_BAM_DATA_FIFO_SIZE] __attribute__ ((ali
 static struct bam_instance bam;
 struct nand_ecclayout fake_ecc_layout;
 
+static int
+qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
+		    enum nand_cfg_value cfg_mode, struct mtd_oob_ops *ops);
+
 static void
 qpic_nand_wait_for_cmd_exec(uint32_t num_desc)
 {
@@ -1512,6 +1516,95 @@ static void qpic_nand_read_datcopy(struct mtd_info *mtd, struct mtd_oob_ops *ops
 }
 
 static int
+qpic_nand_check_erased_buf(unsigned char *buf, int len, int bitflips_threshold)
+{
+	int bitflips = 0;
+
+	for (; len > 0; len--, buf++) {
+		bitflips += 8 - hweight8(*buf);
+		if (unlikely(bitflips > bitflips_threshold))
+			return -EBADMSG;
+	}
+
+	return bitflips;
+}
+
+/*
+ * Now following logic is being added to identify the erased codeword
+ * bitflips.
+ * 1. Maintain the bitmasks for the codewords which generated uncorrectable
+ *    error.
+ * 2. Read the raw data again in temp buffer and count the number of zeros.
+ *    Since spare bytes are unused in ECC layout and won’t affect ECC
+ *    correctability so no need to count number of zero in spare bytes.
+ * 3. If the number of zero is below ECC correctability then it can be
+ *    treated as erased CW. In this case, make all the data/oob of actual user
+ *    buffers as 0xff.
+ */
+static int
+qpic_nand_check_erased_page(struct mtd_info *mtd, uint32_t page,
+			    unsigned char *datbuf,
+			    unsigned char *oobbuf,
+			    unsigned int uncorrectable_err_cws,
+			    unsigned int *max_bitflips)
+{
+	struct mtd_oob_ops raw_page_ops;
+	struct qpic_nand_dev *dev = MTD_QPIC_NAND_DEV(mtd);
+	unsigned char *tmp_datbuf;
+	unsigned int tmp_datasize, datasize, oobsize;
+	int i, start_cw, last_cw, ret, data_bitflips;
+
+	raw_page_ops.mode = MTD_OOB_RAW;
+	raw_page_ops.len = mtd->writesize;
+	raw_page_ops.ooblen =  mtd->oobsize;
+	raw_page_ops.datbuf = dev->tmp_datbuf;
+	raw_page_ops.oobbuf = dev->tmp_oobbuf;
+	raw_page_ops.retlen = 0;
+	raw_page_ops.oobretlen = 0;
+
+	ret = qpic_nand_read_page(mtd, page, NAND_CFG_RAW, &raw_page_ops);
+	if (ret)
+		return ret;
+
+	start_cw = ffs(uncorrectable_err_cws) - 1;
+	last_cw = fls(uncorrectable_err_cws);
+
+	tmp_datbuf = dev->tmp_datbuf + start_cw * dev->cw_size;
+	tmp_datasize = dev->cw_size - dev->spare_bytes;
+	datasize = DATA_BYTES_IN_IMG_PER_CW;
+	datbuf += start_cw * datasize;
+
+	for (i = start_cw; i < last_cw;
+	     i++, datbuf += datasize, tmp_datbuf += dev->cw_size) {
+		if (!(BIT(i) & uncorrectable_err_cws))
+			continue;
+
+		data_bitflips =
+			qpic_nand_check_erased_buf(tmp_datbuf, tmp_datasize,
+						   mtd->ecc_strength);
+		if (data_bitflips < 0) {
+			mtd->ecc_stats.failed++;
+			continue;
+		}
+
+		*max_bitflips =
+			max_t(unsigned int, *max_bitflips, data_bitflips);
+
+		if (i == dev->cws_per_page - 1) {
+			oobsize = dev->cws_per_page << 2;
+			datasize = DATA_BYTES_IN_IMG_PER_CW - oobsize;
+			if (oobbuf)
+				memset(oobbuf, 0xff, oobsize);
+		}
+
+		if (datbuf)
+			memset(datbuf, 0xff, datasize);
+	}
+
+	return 0;
+}
+
+static int
 qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 		    enum nand_cfg_value cfg_mode,
 		    struct mtd_oob_ops *ops)
@@ -1533,9 +1626,9 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 	uint16_t data_bytes;
 	uint16_t ud_bytes_in_last_cw;
 	uint16_t oob_bytes;
-	unsigned char *buffer;
-	unsigned char *spareaddr;
-	unsigned int max_bitflips = 0;
+	unsigned char *buffer, *ops_datbuf = ops->datbuf;
+	unsigned char *spareaddr, *ops_oobbuf = ops->oobbuf;
+	unsigned int max_bitflips = 0, uncorrectable_err_cws = 0;
 
 	params.addr0 = page << 16;
 	params.addr1 = (page >> 16) & 0xff;
@@ -1731,7 +1824,7 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 
 		if (nand_ret < 0) {
 			if (nand_ret == -EBADMSG) {
-				mtd->ecc_stats.failed++;
+				uncorrectable_err_cws |= BIT(i);
 				continue;
 			}
 
@@ -1741,6 +1834,14 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 		max_bitflips = max_t(unsigned int, max_bitflips, nand_ret);
 	}
 
+	if (uncorrectable_err_cws) {
+		nand_ret = qpic_nand_check_erased_page(mtd, page, ops_datbuf,
+						       ops_oobbuf,
+						       uncorrectable_err_cws,
+						       &max_bitflips);
+		if (nand_ret < 0)
+			goto qpic_nand_read_page_error;
+	}
 
 	return max_bitflips;
 
@@ -2234,10 +2335,11 @@ qpic_nand_init(struct qpic_nand_init_config *config)
 	dev = MTD_QPIC_NAND_DEV(mtd);
 	qpic_nand_mtd_params(mtd);
 
-	alloc_size = (mtd->writesize  /* For dev->pad_dat */
-		     + mtd->oobsize   /* For dev->pad_oob */
-		     + mtd->writesize /* For dev->zero_page */
-		     + mtd->oobsize); /* For dev->zero_oob */
+	/*
+	 * allocate buffer for dev->pad_dat, dev->pad_oob, dev->zero_page,
+	 * dev->zero_oob, dev->tmp_datbuf, dev->tmp_oobbuf
+	 */
+	alloc_size = 3 * (mtd->writesize + mtd->oobsize);
 
 	dev->buffers = malloc(alloc_size);
 	if (dev->buffers == NULL) {
@@ -2260,6 +2362,11 @@ qpic_nand_init(struct qpic_nand_init_config *config)
 
 	memset(dev->zero_page, 0x0, mtd->writesize);
 	memset(dev->zero_oob, 0x0, mtd->oobsize);
+
+	dev->tmp_datbuf = buf;
+	buf += mtd->writesize;
+	dev->tmp_oobbuf = buf;
+	buf += mtd->oobsize;
 
 	/* Register with MTD subsystem. */
 	ret = nand_register(CONFIG_QPIC_NAND_NAND_INFO_IDX);
