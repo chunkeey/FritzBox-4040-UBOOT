@@ -554,34 +554,32 @@ qpic_nand_save_config(struct mtd_info *mtd)
 		dev->ecc_bch_cfg |= (1 << NAND_DEV0_ECC_MODE_SHIFT);
 
 		if (dev->widebus) {
-			/* spare size bytes in each CW */
-			dev->cfg0 |= (0 << NAND_DEV0_CFG0_SPARE_SZ_BYTES_SHIFT);
-			/* parity bytes in each CW */
-			dev->ecc_bch_cfg |= (14 <<
-					     NAND_DEV0_ECC_PARITY_SZ_BYTES_SHIFT);
+			dev->ecc_bytes_hw = 14;
+			dev->spare_bytes = 0;
+			dev->bbm_size = 2;
 		} else {
-			/* spare size bytes in each CW */
-			dev->cfg0 |= (2 << NAND_DEV0_CFG0_SPARE_SZ_BYTES_SHIFT);
-			/* parity bytes in each CW */
-			dev->ecc_bch_cfg |= (13 <<
-					     NAND_DEV0_ECC_PARITY_SZ_BYTES_SHIFT);
+			dev->ecc_bytes_hw = 13;
+			dev->spare_bytes = 2;
+			dev->bbm_size = 1;
 		}
 	} else {
 		dev->cw_size = NAND_CW_SIZE_4_BIT_ECC;
 		if (dev->widebus) {
-			/* spare size bytes in each CW */
-			dev->cfg0 |= (2 << NAND_DEV0_CFG0_SPARE_SZ_BYTES_SHIFT);
-			/* parity bytes in each CW */
-			dev->ecc_bch_cfg |= (8 <<
-					     NAND_DEV0_ECC_PARITY_SZ_BYTES_SHIFT);
+			dev->ecc_bytes_hw = 8;
+			dev->spare_bytes = 2;
+			dev->bbm_size = 2;
 		} else {
-			/* spare size bytes in each CW */
-			dev->cfg0 |= (4 << NAND_DEV0_CFG0_SPARE_SZ_BYTES_SHIFT);
-			/* parity bytes in each CW */
-			dev->ecc_bch_cfg |= (7 <<
-					     NAND_DEV0_ECC_PARITY_SZ_BYTES_SHIFT);
+			dev->ecc_bytes_hw = 7;
+			dev->spare_bytes = 4;
+			dev->bbm_size = 1;
 		}
 	}
+
+	/* spare size bytes in each CW */
+	dev->cfg0 |= dev->spare_bytes << NAND_DEV0_CFG0_SPARE_SZ_BYTES_SHIFT;
+	/* parity bytes in each CW */
+	dev->ecc_bch_cfg |=
+		dev->ecc_bytes_hw << NAND_DEV0_ECC_PARITY_SZ_BYTES_SHIFT;
 
 	qpic_oob_size = dev->cw_size * dev->cws_per_page - mtd->writesize;
 
