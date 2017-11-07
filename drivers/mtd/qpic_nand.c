@@ -133,48 +133,52 @@ qpic_nand_erased_status_reset(struct cmd_element *cmd_list_ptr, uint8_t flags)
 	qpic_nand_wait_for_cmd_exec(1);
 }
 
-static nand_result_t
-qpic_nand_check_status(struct mtd_info *mtd, uint32_t status)
+static int
+qpic_nand_check_read_status(struct mtd_info *mtd, struct read_stats *stats)
 {
-	uint32_t erase_sts;
+	uint32_t status = stats->flash_sts;
 
 	/* Check for errors */
-	if (status & NAND_FLASH_ERR) {
+	if (!(status & NAND_FLASH_ERR)) {
+		uint32_t corrected = stats->buffer_sts & NUM_ERRORS_MASK;
+		mtd->ecc_stats.corrected += corrected;
+		return corrected;
+	}
+
+	if (status & NAND_FLASH_MPU_ERR)
+		return -EPERM;
+
+	if (status & NAND_FLASH_TIMEOUT_ERR)
+		return -ETIMEDOUT;
+
+	if (stats->buffer_sts & NAND_BUFFER_UNCORRECTABLE) {
 		/* Check if this is an ECC error on an erased page. */
-		if (status & NAND_FLASH_OP_ERR) {
-			erase_sts = qpic_nand_read_reg(
-					NAND_ERASED_CW_DETECT_STATUS, 0);
-			if ((erase_sts & 
-			    (1 << NAND_ERASED_CW_DETECT_STATUS_PAGE_ALL_ERASED))) {
-				/* Mask the OP ERROR. */
-				status &= ~NAND_FLASH_OP_ERR;
-				qpic_nand_erased_status_reset(ce_array, 0);
-			}
-		}
-
-		/* ECC error flagged on an erased page read.
-		 * Ignore and return success.
-		 */
-		if (!(status & NAND_FLASH_ERR))
-			return NANDC_RESULT_SUCCESS;
-
-		printf("Nand Flash error. Status = %d\n", status);
-
-		if (status & NAND_FLASH_OP_ERR) {
-			mtd->ecc_stats.failed++;
+		if ((stats->erased_cw_sts & NAND_CW_ERASED) != NAND_CW_ERASED)
 			return -EBADMSG;
-		}
+
+		return 0;
+	}
+
+	return -EIO;
+}
+
+static int
+qpic_nand_check_status(struct mtd_info *mtd, uint32_t status)
+{
+	/* Check for errors */
+	if (status & NAND_FLASH_ERR) {
+		printf("Nand Flash error. Status = %d\n", status);
 
 		if (status & NAND_FLASH_MPU_ERR)
 			return -EPERM;
 
 		if (status & NAND_FLASH_TIMEOUT_ERR)
 			return -ETIMEDOUT;
-		else
-			return NANDC_RESULT_FAILURE;
+
+		return -EIO;
 	}
 
-	return NANDC_RESULT_SUCCESS;
+	return 0;
 }
 
 static uint32_t
@@ -1517,8 +1521,7 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 	struct qpic_nand_dev *dev = MTD_QPIC_NAND_DEV(mtd);
 	struct cfg_params params;
 	uint32_t ecc;
-	uint32_t flash_sts[QPIC_NAND_MAX_CWS_IN_PAGE];
-	uint32_t buffer_sts[QPIC_NAND_MAX_CWS_IN_PAGE];
+	struct read_stats *stats = dev->stats;
 	uint32_t addr_loc_0;
 	uint32_t addr_loc_1;
 	struct cmd_element *cmd_list_ptr = ce_array;
@@ -1529,12 +1532,12 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 	int nand_ret = NANDC_RESULT_SUCCESS;
 	uint8_t flags = 0;
 	uint32_t *cmd_list_temp = NULL;
-	uint32_t num_errors;
 	uint16_t data_bytes;
 	uint16_t ud_bytes_in_last_cw;
 	uint16_t oob_bytes;
 	unsigned char *buffer;
 	unsigned char *spareaddr;
+	unsigned int max_bitflips = 0;
 
 	params.addr0 = page << 16;
 	params.addr1 = (page >> 16) & 0xff;
@@ -1658,7 +1661,7 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 		num_cmd_desc++;
 
 		bam_add_cmd_element(cmd_list_ptr, NAND_FLASH_STATUS,
-				   (uint32_t)((addr_t)&(flash_sts[i])),
+				   (uint32_t)((addr_t)&(stats[i].flash_sts)),
 				   CE_READ_TYPE);
 
 		cmd_list_temp = (uint32_t *)cmd_list_ptr;
@@ -1666,8 +1669,13 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 		cmd_list_ptr++;
 
 		bam_add_cmd_element(cmd_list_ptr, NAND_BUFFER_STATUS,
-				   (uint32_t)((addr_t)&(buffer_sts[i])),
+				    (uint32_t)((addr_t)&(stats[i].buffer_sts)),
 				   CE_READ_TYPE);
+		cmd_list_ptr++;
+
+		bam_add_cmd_element(cmd_list_ptr, NAND_ERASED_CW_DETECT_STATUS,
+				    (uint32_t)((addr_t)&(stats[i].erased_cw_sts)),
+				    CE_READ_TYPE);
 		cmd_list_ptr++;
 
 		if (i == (dev->cws_per_page) - 1) {
@@ -1717,22 +1725,31 @@ qpic_nand_read_page(struct mtd_info *mtd, uint32_t page,
 
 	/* Check status */
 	for (i = 0; i < (dev->cws_per_page) ; i ++) {
-		flash_sts[i] = qpic_nand_check_status(mtd, flash_sts[i]);
-		if (flash_sts[i]) {
-			printf("NAND page read failed. page: %x status %x\n",
-				 page, flash_sts[i]);
+		if (cfg_mode == NAND_CFG_RAW)
+			nand_ret = qpic_nand_check_status(mtd,
+							  stats[i].flash_sts);
+		else
+			nand_ret = qpic_nand_check_read_status(mtd, &stats[i]);
+
+		if (nand_ret < 0) {
+			if (nand_ret == -EBADMSG) {
+				mtd->ecc_stats.failed++;
+				continue;
+			}
+
 			goto qpic_nand_read_page_error;
 		}
+
+		max_bitflips = max_t(unsigned int, max_bitflips, nand_ret);
 	}
 
-	for (i = 0; i < (dev->cws_per_page); i++) {
-		num_errors = buffer_sts[i];
-		num_errors &= NUM_ERRORS_MASK;
-		if(num_errors)
-			mtd->ecc_stats.corrected++;
-	}
+
+	return max_bitflips;
+
 qpic_nand_read_page_error:
-return nand_ret;
+	printf("NAND page read failed. page: %x status %x\n",
+	       page, nand_ret);
+	return nand_ret;
 }
 
 static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
@@ -1743,8 +1760,9 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 	struct nand_chip *chip = MTD_NAND_CHIP(mtd);
 	uint32_t start_page;
 	uint32_t num_pages;
-	uint32_t corrected;
 	enum nand_cfg_value cfg_mode;
+	unsigned int max_bitflips = 0;
+	unsigned int ecc_failures = mtd->ecc_stats.failed;
 
 	/* We don't support MTD_OOB_PLACE as of yet. */
 	if (ops->mode == MTD_OOB_PLACE)
@@ -1771,8 +1789,6 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 	start_page = ((to >> chip->page_shift));
 	num_pages = qpic_get_read_page_count(mtd, ops);
 
-	corrected = mtd->ecc_stats.corrected;
-
 	for (i = 0; i < num_pages; i++) {
 		struct mtd_oob_ops page_ops;
 		page_ops.mode = ops->mode;
@@ -1785,21 +1801,24 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 
 		ret = qpic_nand_read_page(mtd, start_page + i, cfg_mode,
 					  &page_ops);
-		if (ret) {
+		if (ret < 0) {
 			printf("%s: reading page %d failed with %d err\n",
 			       __func__, start_page + i, ret);
 			return ret;
 		}
+
+		max_bitflips = max_t(unsigned int, max_bitflips, ret);
 		qpic_nand_read_datcopy(mtd, ops);
 		qpic_nand_read_oobcopy(mtd, ops);
 	}
 
-	if (mtd->ecc_stats.corrected != corrected) {
-		ret = -EUCLEAN;
-		return ret;
+	if (ecc_failures != mtd->ecc_stats.failed) {
+		printf("%s: ecc failure while reading from %llx\n",
+		       __func__, to);
+		return -EBADMSG;
 	}
 
-	return NANDC_RESULT_SUCCESS;
+	return max_bitflips;
 }
 
 /**

@@ -121,6 +121,8 @@
 #define NAND_ERASED_CW_DETECT_STATUS_PAGE_ALL_ERASED		7
 #define NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ALL_ERASED	6
 #define NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ERASED		4
+#define NAND_CW_ERASED	(BIT(NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ERASED) | \
+			 BIT(NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ALL_ERASED))
 
 #define NAND_ERASED_CW_DETECT_CFG_RESET_CTRL		1
 #define NAND_ERASED_CW_DETECT_CFG_ACTIVATE_CTRL		0
@@ -150,6 +152,8 @@
 
 #define PROG_ERASE_OP_RESULT			(1 << 7)
 
+/* NAND buffer status */
+#define NAND_BUFFER_UNCORRECTABLE		(1 << 8)
 #define NUM_ERRORS_MASK				0x0000001f
 #define NUM_ERRORS(i)				((i) << 0)
 
@@ -385,6 +389,12 @@ struct qpic_nand_init_config
 	struct qpic_nand_bam_pipes pipes;
 };
 
+struct read_stats {
+	uint32_t flash_sts;
+	uint32_t buffer_sts;
+	uint32_t erased_cw_sts;
+};
+
 struct qpic_nand_dev {
 	unsigned id;
 	unsigned type;
@@ -413,6 +423,7 @@ struct qpic_nand_dev {
 	unsigned char *pad_oob;
 	unsigned char *zero_page;
 	unsigned char *zero_oob;
+	struct read_stats stats[QPIC_NAND_MAX_CWS_IN_PAGE];
 };
 
 #endif
