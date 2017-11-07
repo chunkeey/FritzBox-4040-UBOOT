@@ -385,12 +385,6 @@ struct qpic_nand_init_config
 	struct qpic_nand_bam_pipes pipes;
 };
 
-enum nand_ecc_width
-{
-	NAND_WITH_4_BIT_ECC,
-	NAND_WITH_8_BIT_ECC,
-};
-
 struct qpic_nand_dev {
 	unsigned id;
 	unsigned type;
@@ -400,7 +394,6 @@ struct qpic_nand_dev {
 	unsigned block_size;
 	unsigned spare_size;
 	unsigned num_blocks;
-	enum nand_ecc_width ecc_width;
 	unsigned num_pages_per_blk;
 	unsigned num_pages_per_blk_mask;
 	unsigned widebus;
