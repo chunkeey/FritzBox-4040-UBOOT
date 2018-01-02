@@ -4,9 +4,11 @@
 *.o
 *.lds
 *.bin
+*.dep
 *.srec
 .*depend*
 include/generated/
+u-boot
 u-boot.lds
 u-boot.map
 tools/mkimage
