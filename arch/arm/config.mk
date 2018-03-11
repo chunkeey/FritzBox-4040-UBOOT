@@ -24,7 +24,7 @@
 CROSS_COMPILE ?= arm-linux-
 
 ifndef CONFIG_STANDALONE_LOAD_ADDR
-ifeq ($(SOC),omap3)
+ifeq ($(SOC),$(filter $(SOC),omap3 qca))
 CONFIG_STANDALONE_LOAD_ADDR = 0x80300000
 else
 CONFIG_STANDALONE_LOAD_ADDR = 0xc100000

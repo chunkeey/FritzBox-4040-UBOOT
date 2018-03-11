@@ -16,3 +16,4 @@ tools/dumpimage
 tools/mkenvimage
 tools/gen_eth_addr
 tools/envcrc
+examples/standalone/hello_world
