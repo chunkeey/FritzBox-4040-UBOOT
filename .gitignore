@@ -6,6 +6,8 @@
 *.bin
 *.dep
 *.srec
+*.app
+*.gz
 .*depend*
 include/generated/
 u-boot
@@ -17,3 +19,4 @@ tools/mkenvimage
 tools/gen_eth_addr
 tools/envcrc
 examples/standalone/hello_world
+examples/standalone/ubi_sysupgrade

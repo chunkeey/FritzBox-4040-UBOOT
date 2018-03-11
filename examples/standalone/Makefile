@@ -47,6 +47,7 @@ ELF := $(strip $(ELF-y) $(ELF-$(ARCH)) $(ELF-$(BOARD)) $(ELF-$(CPU)))
 
 SREC := $(addsuffix .srec,$(ELF))
 BIN  := $(addsuffix .bin,$(ELF))
+APP  := $(addsuffix .app,$(ELF))
 
 COBJS	:= $(ELF:=.o)
 
@@ -100,7 +101,7 @@ export PLATFORM_LIBS
 CFLAGS_NTR := $(call cc-option,-fno-toplevel-reorder)
 CFLAGS += $(CFLAGS_NTR) -ffunction-sections
 
-all:	$(obj).depend $(OBJS) $(LIB) $(SREC) $(BIN) $(ELF)
+all:	$(obj).depend $(OBJS) $(LIB) $(SREC) $(BIN) $(APP) $(ELF)
 
 #########################################################################
 $(LIB):	$(obj).depend $(LIBOBJS)
@@ -119,6 +120,15 @@ $(obj)%.srec:	$(obj)%
 $(BIN):
 $(obj)%.bin:	$(obj)%
 		$(OBJCOPY) -O binary $< $@ 2>/dev/null
+
+$(APP):
+$(obj)%.app:	$(obj)%
+	{ \
+	$(OBJCOPY) -O binary $< $@ 2>/dev/null; \
+	gzip --best --force $@; \
+	mkimage -e $(CONFIG_STANDALONE_LOAD_ADDR) -a $(CONFIG_STANDALONE_LOAD_ADDR) -A $(ARCH) -T standalone -O u-boot -C gzip -d $@.gz $@; \
+	rm -f $@.gz; \
+	}
 
 #########################################################################
 
