@@ -99,7 +99,7 @@ export PLATFORM_LIBS
 # application's entry point will be the first function in the application's
 # source file.
 CFLAGS_NTR := $(call cc-option,-fno-toplevel-reorder)
-CFLAGS += $(CFLAGS_NTR) -ffunction-sections
+CFLAGS += $(CFLAGS_NTR) -ffunction-sections -DSTANDALONE_APP
 
 all:	$(obj).depend $(OBJS) $(LIB) $(SREC) $(BIN) $(APP) $(ELF)
 

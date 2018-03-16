@@ -16,6 +16,8 @@
  * sysupgrade extract
  */
 
+#ifdef STANDALONE_APP
+
 static int app_entry(int argc, char * const argv[]);
 
 /*
@@ -23,10 +25,11 @@ static int app_entry(int argc, char * const argv[]);
  * the start function needs to be located at the top to match the
  * CONFIG_STANDALONE_LOAD_ADDR defined entry point.
  */
-int __start(int argc, char * const argv[])
+int ubi_sysupgrade(int argc, char * const argv[])
 {
 	return app_entry(argc, argv);
 }
+#endif
 
 #include <common.h>
 #include <exports.h>
@@ -191,12 +194,6 @@ static int verify_header_checksum(const struct posix_header *posix)
 	}
 
 	return 1;
-}
-
-int raise(int sig)
-{
-	printf("received signal: %d\n", sig);
-	return 0;
 }
 
 static struct posix_header *get_tar_header(const struct tar_struct *tar, const size_t offset)
@@ -563,6 +560,7 @@ out:
 	return ret;
 }
 
+#ifdef STANDALONE_APP
 static struct script_struct {
 	int off;
 	image_header_t hdr;
@@ -589,6 +587,15 @@ int run_command(const char *command, int flag)
 
 	return 0;
 }
+
+static void create_script(void)
+{
+	cmd.hdr.ih_size = cpu_to_uimage(cmd.off + 1 + 8 /* size + padding */);
+	cmd.data.size = cpu_to_uimage(cmd.off + 1);
+	cmd.hdr.ih_dcrc = cpu_to_uimage(_crc32(0, &cmd.data, cmd.off + 1 +8));
+	cmd.hdr.ih_hcrc = cpu_to_uimage(_crc32(0, &cmd.hdr, sizeof(cmd.hdr)));
+}
+#endif
 
 static int do_cmd(bool verbose, bool tryrun, const char *fmt, ...)
 {
@@ -758,10 +765,16 @@ static void sysupgrade_help(void)
 
 	/* printf doesn't like having one big Helptext string. we do it in piecemeal fashion. */
 	static const char * const helptext[] = {
+#ifndef STANDALONE_APP
 		"syntax: sysupgrade -h -T -v -b BOARDNAME -a address -s size -u ubi volume -k kernel_ubi -r rootfs_ubi -m mode\n",
+#else
+		"syntax: sysupgrade -h -v -b BOARDNAME -a address -s size -u ubi volume -k kernel_ubi -r rootfs_ubi -m mode\n",
+#endif
 		"    - verifies, extracts sysupgrade image for board <board> at <address> with <size>\n",
 		" -h = show this helptext\n",
+#ifndef STANDALONE_APP
 		" -T = try run (default = false)\n",
+#endif
 		" -v = verbose (default = false)\n",
 		" -b = board (default = " SYSUPGRADE_BOARD" )\n",
 		" -a = image address location (overwrites fileaddr env)\n",
@@ -779,19 +792,10 @@ static void sysupgrade_help(void)
 		" openwrt_rootfs_data_size\n",
 		" openwrt_[kernel|root]_volume_name\n",
 		" openwrt_[kernel|root]_volume_clamp\n",
-
-};
+	};
 
 	for (i = 0; i < ARRAY_SIZE(helptext); i++)
 		printf(helptext[i]);
-}
-
-static void create_script(void)
-{
-	cmd.hdr.ih_size = cpu_to_uimage(cmd.off + 1 + 8 /* size + padding */);
-	cmd.data.size = cpu_to_uimage(cmd.off + 1);
-	cmd.hdr.ih_dcrc = cpu_to_uimage(_crc32(0, &cmd.data, cmd.off + 1 +8));
-	cmd.hdr.ih_hcrc = cpu_to_uimage(_crc32(0, &cmd.hdr, sizeof(cmd.hdr)));
 }
 
 int sysupgrade(int argc, char * const argv[])
@@ -864,14 +868,17 @@ int sysupgrade(int argc, char * const argv[])
                         iter->clamp_size = simple_strtoul(tmp, NULL, 16);
 	}
 
-	optind = 1;
+	mini_getopt_reset();
+
 	while ((c = mini_getopt(argc, argv, "Tb:a:s:u:k:r:m:vh")) != -1) {
 		switch (c) {
+#ifndef STANDALONE_APP
 		case 'T':
 			if (verbose)
 				printf("tryrun set\n");
 			tryrun = true;
 			break;
+#endif
 		case 'v':
 			verbose = true;
 			printf("verbose enabled\n");
@@ -1045,6 +1052,7 @@ int sysupgrade(int argc, char * const argv[])
 	err = do_cmd(verbose, tryrun, "ubi create rootfs_data %.8x d",
 		     rootfs_data_size);
 
+#ifdef STANDALONE_APP
 	printf(" --- script commands ---\n");
 	printf("%s", cmd.data.buf);
 	printf("------------------------\n");
@@ -1054,15 +1062,17 @@ int sysupgrade(int argc, char * const argv[])
 	printf("Finished verifying and extracting the image.\n"
 		"In order to flash it, please enter the following command in the u-boot prompt:\n"
 	       " # source %p\n", &cmd.hdr);
+#endif
 
 err:
 	free_tar(&tar);
 	return err ? err : 0;
 }
 
+#ifdef STANDALONE_APP
 static int app_entry(int argc, char * const argv[])
 {
-        /* Print the ABI version */
+	/* Print the ABI version */
 	app_startup(argv);
 	if (XF_VERSION != (int)get_version()) {
 		printf ("APP expects ABI version %d\n", XF_VERSION);
@@ -1070,10 +1080,126 @@ static int app_entry(int argc, char * const argv[])
 		return 1;
 	}
 
-	mini_getopt_reset();
+	cmd.off = 0;
 
 	/*
 	 * The first argument is the address of the program in RAM.
 	 */
 	return sysupgrade(argc, argv);
 }
+
+int raise(int sig)
+{
+	printf("received signal: %d\n", sig);
+	return 0;
+}
+#else
+
+static int do_sysupgrade(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+{
+	return sysupgrade(argc, argv);
+}
+
+U_BOOT_CMD(
+	sysupgrade, 10, 0, do_sysupgrade,
+	"perform sysupgrade",
+	"-T -v -b BOARDNAME -a address -s size -u ubi volume -k kernel_ubi -r rootfs_ubi -m mode\n"
+	"    - verifies, extracts sysupgrade image for board <board> at <address> with <size>\n"
+	" -T = try run\n"
+	" -v = verbose\n"
+	" -u = ubi partition name (ubi/UBI-DEV/...)\n"
+	" -k = kernel ubi volume name\n"
+	" -r = rootfs ubi volume name\n"
+	" -m = mode (0 = upgrades kernel and then root, 1 = removes ubi partitions first, before upgrading)\n"
+);
+
+static int do_get_image_type(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+{
+	ulong addr = 0;
+	size_t len = 0;
+	const char *tmp;
+	unsigned char *data;
+	int c;
+	bool verbose = false, addr_set = false;
+
+	setenv("image_type", "unknown");
+
+	tmp = getenv("filesize");
+	if (tmp)
+		len = simple_strtoul(tmp, NULL, 16);
+
+	tmp = getenv("fileaddr");
+	if (tmp) {
+		addr_set = true;
+		addr = simple_strtoul(tmp, NULL, 16);
+	}
+
+	mini_getopt_reset();
+
+	while ((c = mini_getopt(argc, argv, "a:s:v")) != -1) {
+		switch (c) {
+		case 'v':
+			verbose = true;
+			printf("verbose enabled\n");
+			break;
+		case 'a':
+			addr_set = true;
+			addr = simple_strtoul(optarg, NULL, 16);
+			if (verbose)
+				printf("addr set to %x\n", (u32) addr);
+			break;
+		case 's':
+			len = simple_strtoul(optarg, NULL, 16);
+			if (verbose)
+				printf("len set to %x\n", len);
+			break;
+		case ':':
+			eprintf("option '%c' lacks argument\n", optopt);
+			return 1;
+		case '?':
+			eprintf("unknown option '%c'\n", optopt);
+			return 1;
+		default:
+			eprintf("unhandled option '%c'\n", c);
+			return 1;
+		}
+	}
+
+	if (!addr_set || !len) {
+		eprintf("image location and/or size not set.\n");
+		return 1;
+	}
+
+	data = (unsigned char *)addr;
+
+	if (verbose)
+		printf("test image sysupgrade for image @ 0x%p (0x%x bytes)\n", data, len);
+
+	if (verify_fw(data, &len)) {
+		/* not a sysupgrade image */
+
+		switch (genimg_get_format(data)) {
+		case IMAGE_FORMAT_LEGACY:
+			setenv("image_type", "legacy");
+                	break;
+	        case IMAGE_FORMAT_FIT:
+			setenv("image_type", "fit");
+			break;
+		}
+	} else {
+		setenv("image_type", "sysupgrade");
+	}
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	get_image_type, 4, 0, do_get_image_type,
+	"tests image and sets image_type env variable accordingly",
+	" -v -b BOARDNAME -a address -s size\n"
+	"    - verifies if the provided image is a sysupgrade image for board <board> at <address> with <size>\n"
+	" -v = verbose\n"
+	"image_type can be: sysupgrade, fit, legacy or unknown"
+);
+
+#endif
