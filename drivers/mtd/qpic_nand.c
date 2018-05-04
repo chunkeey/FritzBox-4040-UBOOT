@@ -347,8 +347,16 @@ qpic_bam_init(struct qpic_nand_init_config *config)
 		bam_ret = NANDC_RESULT_FAILURE;
 		goto qpic_nand_bam_init_error;
 	}
-	/* Enable BAM Mode in QPIC */
-	writel(BAM_MODE_EN, QPIC_NAND_CTRL);
+
+	/*
+	 * Once BAM_MODE_EN bit is set then QPIC_NAND_CTRL register
+	 * should be written with BAM instead of writel.
+	 * Check if BAM_MODE_EN is already set by bootloader and write only
+	 * if this bit is not set.
+	 */
+	if (!(readl(QPIC_NAND_CTRL) & BAM_MODE_EN))
+		writel(BAM_MODE_EN, QPIC_NAND_CTRL);
+
 qpic_nand_bam_init_error:
 return bam_ret;
 }
