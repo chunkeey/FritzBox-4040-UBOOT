@@ -1423,13 +1423,20 @@ static int qpic_nand_scan_bbt_nop(struct mtd_info *mtd)
  * length.
  */
 static u_long qpic_get_read_page_count(struct mtd_info *mtd,
-                      struct mtd_oob_ops *ops)
+				       struct mtd_oob_ops *ops, loff_t to)
 {
 	struct qpic_nand_dev *dev = MTD_QPIC_NAND_DEV(mtd);
 	struct nand_chip *chip = MTD_NAND_CHIP(mtd);
+	uint32_t start_page, end_page;
 
 	if (ops->datbuf != NULL) {
-		return (ops->len + mtd->writesize - 1) >> chip->page_shift;
+		/*
+		 * Determine start page (can be non page aligned) and end page
+		 * and calculate number of pages.
+		 */
+		start_page = to >> chip->page_shift;
+		end_page = (to + ops->len - 1) >> chip->page_shift;
+		return end_page - start_page + 1;
 	} else {
 	if (dev->oob_per_page == 0)
 		return 0;
@@ -1464,7 +1471,7 @@ static uint8_t *qpic_nand_read_oobbuf(struct mtd_info *mtd,
  * data, return an internal buffer, to hold the data temporarily.
  */
 static uint8_t *qpic_nand_read_datbuf(struct mtd_info *mtd,
-				     struct mtd_oob_ops *ops)
+				     struct mtd_oob_ops *ops, uint32_t col)
 {
 	size_t read_datlen;
 	struct qpic_nand_dev *dev = MTD_QPIC_NAND_DEV(mtd);
@@ -1473,7 +1480,7 @@ static uint8_t *qpic_nand_read_datbuf(struct mtd_info *mtd,
 		return NULL;
 
 	read_datlen = ops->len - ops->retlen;
-	if (read_datlen < mtd->writesize)
+	if (read_datlen < mtd->writesize || col)
 		return dev->pad_dat;
 
 	return ops->datbuf + ops->retlen;
@@ -1505,7 +1512,9 @@ static void qpic_nand_read_oobcopy(struct mtd_info *mtd,
  * Copy the in-band data from the internal buffer, to the user buffer,
  * if the internal buffer was used for the read.
  */
-static void qpic_nand_read_datcopy(struct mtd_info *mtd, struct mtd_oob_ops *ops)
+static void
+qpic_nand_read_datcopy(struct mtd_info *mtd,
+		       struct mtd_oob_ops *ops, uint32_t col)
 {
 	size_t datlen;
 	size_t read_datlen;
@@ -1515,10 +1524,13 @@ static void qpic_nand_read_datcopy(struct mtd_info *mtd, struct mtd_oob_ops *ops
 		return;
 
 	read_datlen = ops->len - ops->retlen;
-	datlen = MIN(read_datlen, mtd->writesize);
 
-	if (read_datlen < mtd->writesize)
-		memcpy(ops->datbuf + ops->retlen, dev->pad_dat, datlen);
+	if (col == 0 && read_datlen >= mtd->writesize) {
+		datlen = mtd->writesize;
+	} else {
+		datlen = min(read_datlen, mtd->writesize - col);
+		memcpy(ops->datbuf + ops->retlen, dev->pad_dat + col, datlen);
+	}
 
 	ops->retlen += datlen;
 }
@@ -1867,6 +1879,7 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 	struct nand_chip *chip = MTD_NAND_CHIP(mtd);
 	uint32_t start_page;
 	uint32_t num_pages;
+	uint32_t col;
 	enum nand_cfg_value cfg_mode;
 	unsigned int max_bitflips = 0;
 	unsigned int ecc_failures = mtd->ecc_stats.failed;
@@ -1877,9 +1890,6 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 
 	/* Check for reads past end of device */
 	if (ops->datbuf && (to + ops->len) > mtd->size)
-		return -EINVAL;
-
-	if (to & (mtd->writesize - 1))
 		return -EINVAL;
 
 	if (ops->ooboffs != 0)
@@ -1894,14 +1904,20 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 	}
 
 	start_page = ((to >> chip->page_shift));
-	num_pages = qpic_get_read_page_count(mtd, ops);
+	num_pages = qpic_get_read_page_count(mtd, ops, to);
 
 	for (i = 0; i < num_pages; i++) {
 		struct mtd_oob_ops page_ops;
+
+		/*
+		 * If start address is non page alinged then determine the
+		 * column offset
+		 */
+		col = i == 0 ? to & (mtd->writesize - 1) : 0;
 		page_ops.mode = ops->mode;
 		page_ops.len = mtd->writesize;
 		page_ops.ooblen = dev->oob_per_page;
-		page_ops.datbuf = qpic_nand_read_datbuf(mtd, ops);
+		page_ops.datbuf = qpic_nand_read_datbuf(mtd, ops, col);
 		page_ops.oobbuf = qpic_nand_read_oobbuf(mtd, ops);
 		page_ops.retlen = 0;
 		page_ops.oobretlen = 0;
@@ -1915,7 +1931,7 @@ static int qpic_nand_read_oob(struct mtd_info *mtd, loff_t to,
 		}
 
 		max_bitflips = max_t(unsigned int, max_bitflips, ret);
-		qpic_nand_read_datcopy(mtd, ops);
+		qpic_nand_read_datcopy(mtd, ops, col);
 		qpic_nand_read_oobcopy(mtd, ops);
 	}
 
