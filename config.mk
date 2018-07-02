@@ -206,10 +206,8 @@ endif
 CPPFLAGS += $(if $(MODEL),-D$(shell echo $(MODEL)))
 
 # Enable garbage collection of un-used sections for SPL
-ifeq ($(CONFIG_SPL_BUILD),y)
 CPPFLAGS += -ffunction-sections -fdata-sections
 LDFLAGS_FINAL += --gc-sections
-endif
 
 ifneq ($(CONFIG_SYS_TEXT_BASE),)
 CPPFLAGS += -DCONFIG_SYS_TEXT_BASE=$(CONFIG_SYS_TEXT_BASE)
