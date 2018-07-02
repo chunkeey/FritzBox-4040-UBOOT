@@ -275,7 +275,7 @@ endif
 
 AFLAGS := $(AFLAGS_DEBUG) -D__ASSEMBLY__ $(CPPFLAGS)
 
-LDFLAGS += $(PLATFORM_LDFLAGS)
+LDFLAGS += $(PLATFORM_LDFLAGS) -nostdlib
 LDFLAGS_FINAL += -Bstatic
 
 LDFLAGS_u-boot += -T $(obj)u-boot.lds $(LDFLAGS_FINAL)
