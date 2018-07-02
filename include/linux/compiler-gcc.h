@@ -81,7 +81,8 @@
 #define __maybe_unused			__attribute__((unused))
 #define __always_unused			__attribute__((unused))
 
-#define __gcc_header(x) #x
-#define _gcc_header(x) __gcc_header(linux/compiler-gcc##x.h)
-#define gcc_header(x) _gcc_header(x)
-#include gcc_header(__GNUC__)
+#if __GNUC__ < 5
+#error "GCC version must be 5.x+"
+#endif
+
+#include "linux/compiler-gcc5.h"
