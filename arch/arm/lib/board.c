@@ -48,7 +48,7 @@
 #include <nand.h>
 #include <onenand_uboot.h>
 #include <mmc.h>
-#include <libfdt.h>
+#include <linux/libfdt.h>
 #include <fdtdec.h>
 #include <post.h>
 #include <logbuff.h>

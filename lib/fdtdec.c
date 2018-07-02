@@ -21,7 +21,7 @@
 
 #include <common.h>
 #include <serial.h>
-#include <libfdt.h>
+#include <linux/libfdt.h>
 #include <fdtdec.h>
 
 /* we need the generic GPIO interface here */

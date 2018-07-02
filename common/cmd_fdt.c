@@ -29,8 +29,8 @@
 #include <linux/ctype.h>
 #include <linux/types.h>
 #include <asm/global_data.h>
-#include <fdt.h>
-#include <libfdt.h>
+#include <linux/fdt.h>
+#include <linux/libfdt.h>
 #include <fdt_support.h>
 
 #define MAX_LEVEL	32		/* how deeply nested we will go */

@@ -30,8 +30,8 @@
 #include <image.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
-#include <fdt.h>
-#include <libfdt.h>
+#include <linux/fdt.h>
+#include <linux/libfdt.h>
 #include <fdt_support.h>
 #include <asm/bootm.h>
 #include <jffs2/load_kernel.h>
