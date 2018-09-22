@@ -8,9 +8,12 @@ die() {
 FRITZBOX='192.168.178.1'
 USER='adam2'
 PASSWD='adam2'
+FTP=$(command -v ftp)
 FILE=${1-'uboot-fritz4040.bin'}
 
-[ -r "$FILE" ] || die -e "u-boot image '$FILE' is not readable.\naborting."
+[ -n "$FTP" ] || die -e "no ftp programm installed.\naborting."
+
+[ -r "$FILE" ] || die -e "image '$FILE' is not readable.\naborting."
 
 ping -q -4 -w 1 -c 1 "$FRITZBOX" &> /dev/null || die -e "Fritzbox at $FRITZBOX is not reachable (yet). \nMake sure to use the yellow LAN ports!.\naborting."
 
@@ -31,7 +34,7 @@ have to download and run AVM's recover utility.
 
 EOS
 
-ftp -n -v -4 "$FRITZBOX" << END_SCRIPT
+$FTP -n -v -4 "$FRITZBOX" << END_SCRIPT
 quote USER $USER
 quote PASS $PASSWD
 quote MEDIA FLSH
