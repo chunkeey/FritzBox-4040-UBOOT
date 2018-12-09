@@ -6,7 +6,7 @@ clean:
 	rm -f lzma2eva tichksum
 
 lzma2eva: lzma2eva.c
-	$(CC) -o $@ -lz $<
+	$(CC) -o $@ $<
 
 tichksum: tichksum.c
 	$(CC) -o $@ $<

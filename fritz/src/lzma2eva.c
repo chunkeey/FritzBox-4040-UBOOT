@@ -20,7 +20,35 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <zlib.h> /* crc32 */
+#include <netinet/in.h> /* ntohl */
+
+#define BPB 8 /* bits/byte */
+
+static uint32_t crc32_table[1<<BPB];
+
+static void init_crc32()
+{
+	const uint32_t poly = ntohl(0x2083b8ed);
+	int n;
+
+	for (n = 0; n < 1<<BPB; n++) {
+		uint32_t crc = n;
+		int bit;
+
+		for (bit = 0; bit < BPB; bit++)
+			crc = (crc & 1) ? (poly ^ (crc >> 1)) : (crc >> 1);
+
+		crc32_table[n] = crc;
+	}
+}
+
+static uint32_t crc32(uint32_t crc, unsigned char *buf, size_t len)
+{
+	crc ^= 0xffffffff;
+	for (; len; len--, buf++)
+		crc = crc32_table[(uint8_t)crc ^ *buf] ^ (crc >> BPB);
+	return ~crc;
+}
 
 #define checksum_add32(csum, data) \
   csum += ((uint8_t *)&data)[0]; \
@@ -65,13 +93,16 @@ main(int argc, char *argv[])
   uint32_t compsize = 0;
   fpos_t compsizepos;
   uint32_t datasize32 = 0;
-  uint32_t datacrc32 = crc32(0, 0, 0);
+  uint32_t datacrc32;
 
   uint32_t zero = 0;
   uint32_t entry = 0;
 
   if (argc != 5)
     usage();
+
+  init_crc32();
+  datacrc32 = crc32(0, 0, 0);
 
   /* "parse" command line */
   loadaddress = strtoul(argv[1], 0, 0);
