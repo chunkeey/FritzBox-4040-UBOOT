@@ -447,17 +447,23 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 	char mmc_blks[512];
 #endif
 
-#ifdef CONFIG_MODEL_FRITZ4040
-	u8 data[1024];
+#if defined CONFIG_MODEL_FRITZ4040 || defined CONFIG_MODEL_FRITZ7530
 	const u32 *urconfig;
 
 	/* ART partition 0th position will contain Mac address. */
-	art_offset = 0x11DC00;
-
+	#if defined CONFIG_MODEL_FRITZ4040
+	u8 data[1024];
 	length = sizeof(data);
-
+	art_offset = 0x11DC00;
 	ret = nand_read(&nand_info[CONFIG_IPQ_SPI_NOR_INFO_IDX], art_offset,
 			&length, data);
+	#elif defined CONFIG_MODEL_FRITZ7530
+	u8 data[1024];
+	length = sizeof(data);
+	art_offset = 0x2BD800;
+	ret = nand_read(&nand_info[CONFIG_QPIC_NAND_NAND_INFO_IDX], art_offset,
+			&length, data);
+	#endif
 	if (ret < 0) {
 		printf("ART partition read failed..\n");
 		return -EINVAL;
