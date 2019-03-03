@@ -1,0 +1,70 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x1>;
+	#size-cells = <0x1>;
+	model = "AVM FRITZ!Repeater 3000";
+	compatible = "qcom,ipq40xx";
+	interrupt-parent = <0x1>;
+
+	chosen {
+		bootargs-append = " clk_ignore_unused ";
+	};
+
+	soc {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+		compatible = "simple-bus";
+
+		qpic-nand@79b0000 {
+			compatible = "qcom,ebi2-nandc-bam", "qcom,msm-nand";
+			reg = < 0x79b0000 0x1000 >;
+			#address-cells = < 0x01 >;
+			#size-cells = < 0x00 >;
+			clocks = < 0x04 0x2d 0x04 0x2c >;
+			clock-names = "core", "aon";
+			dmas = < 0x14 0x00 0x14 0x01 0x14 0x02 >;
+			dma-names = "tx", "rx", "cmd";
+			status = "ok";
+
+			nandcs@0 {
+				compatible = "qcom,nandcs", "avm,nand_partitions";
+				reg = < 0x00 >;
+				#address-cells = < 0x01 >;
+				#size-cells = < 0x01 >;
+				nand-ecc-strength = < 0x04 >;
+				nand-ecc-step-size = < 0x200 >;
+				nand-bus-width = < 0x08 >;
+			};
+		};
+
+	};
+
+	reserved-memory {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+
+		rsvd1@87000000 {
+			reg = <0x87000000 0x500000>;
+			no-map;
+		};
+
+		wifi_dump@87500000 {
+			reg = <0x87500000 0x600000>;
+			no-map;
+		};
+
+		rsvd2@87B00000 {
+			reg = <0x87b00000 0x500000>;
+			no-map;
+		};
+	};
+
+	avm-hw-revision {
+		compatible = "avm,avm_hw_revision";
+		revision = "246";
+		subrevision = [30 00];
+	};
+};

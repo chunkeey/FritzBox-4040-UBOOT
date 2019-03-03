@@ -8,6 +8,7 @@ This repository contains resources to build a second stage U-Boot bootloader for
 
 2. Execute make-uboot.sh with your desired board as positional argument. Valid boardnames are the following:
 
+   - fritz3000
    - fritz4040
    - fritz7530
 
@@ -57,6 +58,7 @@ Passive mode on.
 This is compatible with the following models
 
  - FRITZ!Box 7530
+ - FRITZ!Repeater 3000
 
 The Bootloader can be loaded into the devices RAM using the EVA-ramboot script. From there, you are able to boot an OpenWRT initramfs image. The U-Boot can be installed persistently from OpenWRT as EVA does not support writing the NAND chip directly.
 
