@@ -506,11 +506,17 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 			return -EINVAL;
 		}
 
-		ret = smem_getpart("0:APPSBL", &start_blocks, &size_blocks);
+		ret = smem_getpart(CONFIG_MAC_PARTITION, &start_blocks, &size_blocks);
 		if (ret < 0) {
 			printf("No ART partition found\n");
 			return ret;
 		}
+
+                /*
+                 * ART partition 0th position will contain Mac address.
+                 */
+                art_offset =
+                ((loff_t) qca_smem_flash_info.flash_block_size * start_blocks);
 
 		ret = nand_read(&nand_info[flash_type], art_offset, &length, enetaddr);
 		if (ret < 0)
@@ -533,6 +539,7 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 		if (ret < 0)
 			printf("ART partition read failed..\n");
 #endif
+	}
 #endif
 	return ret;
 }
