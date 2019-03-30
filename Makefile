@@ -433,7 +433,7 @@ $(obj)u-boot.img:	$(obj)u-boot.bin
 
 $(obj)u-boot.elf:	$(obj)u-boot
 		@cp -f $< $@
-		@sstrip $@
+		@strip $@
 
 $(obj)u-boot_%.img:	$(obj)u-boot.elf
 		python tools/pack.py -t $* -B -F boardconfig -o ../$@ tools/$(shell echo $(CONFIG_MODEL))
