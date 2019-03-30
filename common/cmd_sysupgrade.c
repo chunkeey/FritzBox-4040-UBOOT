@@ -394,7 +394,7 @@ out:
 	return ret;
 }
 
-static int do_cmd(bool verbose, bool tryrun, const char *fmt, ...)
+static int do_cmd(bool verbose, bool suppress, bool tryrun, const char *fmt, ...)
 {
 	char buf[80];
 	int off;
@@ -415,7 +415,7 @@ static int do_cmd(bool verbose, bool tryrun, const char *fmt, ...)
 
 	if (!tryrun) {
 		ret = run_command(buf, 0);
-		if (ret)
+		if (ret && !suppress)
 			eprintf("error '%d' returned while executing '%s'\n", ret, buf);
 	}
 
@@ -498,19 +498,19 @@ static int do_volume(struct tar_struct *tar, char mode, bool verbose,
 		printf("%s image @ 0x%p (0x%x bytes)\n", img_name, addr, len);
 
 	if (mode == 'R' || mode == 'B') {
-		err = do_cmd(verbose, tryrun, "ubi remove %s", volume);
-		if (err && verbose) {
+		err = do_cmd(verbose, true, tryrun, "ubi remove %s", volume);
+		if (err) {
 			eprintf("failed to remove '%s' volume.\n"
 				"this is not fatal on the first installation.\n", volume);
 		}
 	}
 
 	if (mode == 'C' || mode == 'B') {
-		err = do_cmd(verbose, tryrun, "ubi create %s %.8x %c", volume, clamp ? clamp : len, dynamic ? 'd' : 's');
+		err = do_cmd(verbose, false, tryrun, "ubi create %s %.8x %c", volume, clamp ? clamp : len, dynamic ? 'd' : 's');
 		if (err)
 			return err;
 
-		err = do_cmd(verbose, tryrun, "ubi write %.8x %s %.8x", addr, volume, len);
+		err = do_cmd(verbose, false, tryrun, "ubi write %.8x %s %.8x", addr, volume, len);
 		if (err)
 			return err;
 	}
@@ -552,6 +552,10 @@ enum {
 
 #ifndef SYSUPGRADE_ROOTFS_DATA_VOLUME_SIZE
 #define SYSUPGRADE_ROOTFS_DATA_VOLUME_SIZE (0)
+#endif
+
+#ifndef SYSUPGRADE_VERBOSE
+#define SYSUPGRADE_VERBOSE false
 #endif
 
 static int verify_board(struct tar_struct *tar, const char *board, bool verbose)
@@ -613,7 +617,7 @@ static int do_sysupgrade(cmd_tbl_t * cmdtp, int flag, int argc, char * const arg
 	const char *tmp;
 	unsigned char *data;
 	int err = 0, c, mode = 0;
-	bool verbose = false, tryrun = false, addr_set = false;
+	bool verbose = SYSUPGRADE_VERBOSE, tryrun = false, addr_set = false;
 
 	tmp = getenv("openwrt_rootfs_data_size");
 	if (tmp)
@@ -770,11 +774,11 @@ static int do_sysupgrade(cmd_tbl_t * cmdtp, int flag, int argc, char * const arg
 		}
 	}
 
-	err = do_cmd(verbose, false, "ubi part %s", ubi_part);
+	err = do_cmd(verbose, false, false, "ubi part %s", ubi_part);
 	if (err)
 		goto err;
 
-	err = do_cmd(false, tryrun, "ubi remove rootfs_data");
+	err = do_cmd(false, true, tryrun, "ubi remove rootfs_data");
 	if (err && verbose) {
 		eprintf("failed to remove rootfs_data partition.\n"
 			"this is not fatal on the first installation.\n");
@@ -796,11 +800,11 @@ static int do_sysupgrade(cmd_tbl_t * cmdtp, int flag, int argc, char * const arg
 		}
 	}
 
-	err = do_cmd(verbose, false, "ubi part %s", ubi_part);
+	err = do_cmd(verbose, false, false, "ubi part %s", ubi_part);
 	if (err)
 		goto err;
 
-	err = do_cmd(verbose, tryrun, "ubi create rootfs_data %.8x d", rootfs_data_len);
+	err = do_cmd(verbose, false, tryrun, "ubi create rootfs_data %.8x d", rootfs_data_len);
 
 err:
 	free_tar(&tar);
@@ -910,4 +914,77 @@ U_BOOT_CMD(
 	"    - verifies if the provided image is a sysupgrade image for board <board> at <address> with <size>\n"
 	" -v = verbose\n"
 	"image_type can be: sysupgrade, fit, legacy or unknown"
+);
+
+int
+do_imgcheck(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+{
+	ulong		addr, data, len;
+	char		pbuf[10];
+	image_header_t	*hdr;
+	int		verify;
+
+	verify = getenv_yesno("verify");
+
+	if (argc > 1) {
+		addr = simple_strtoul(argv[1], NULL, 16);
+	} else {
+		printf("not enough arguments\n");
+		return 1;
+	}
+
+	switch (genimg_get_format((void *)addr)) {
+	case IMAGE_FORMAT_LEGACY:
+		printf("## Checking legacy image at %08lx ...\n", addr);
+
+		hdr = (image_header_t *)addr;
+		if (!image_check_magic(hdr)) {
+			printf("Bad Magic Number\n");
+			return 1;
+		}
+
+		if (!image_check_hcrc(hdr)) {
+			printf("Bad Header Checksum\n");
+			return 1;
+		}
+
+		if (image_get_comp(hdr) != IH_COMP_NONE) {
+			printf("Compressed sub-images are not supported.\n");
+			return 1;
+		}
+
+		data = image_get_data(hdr);
+	        len = image_get_data_size(hdr);
+
+		image_print_contents(hdr);
+
+		if (verify) {
+			printf("   Verifying Checksum ... ");
+			if (!image_check_dcrc(hdr)) {
+				printf("Bad Data CRC\n");
+				return 1;
+			}
+		}
+
+		printf("OK\n");
+		break;
+
+	default:
+		puts("Invalid image type for imagecheck\n");
+		return 1;
+	}
+
+	sprintf(pbuf, "%08lx", data);
+	setenv("fileaddr", pbuf);
+	sprintf(pbuf, "%08lx", len);
+	setenv("filesize", pbuf);
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	imagecheck, 4, 1, do_imgcheck,
+	"checks legacy image",
+	"addr\n"
+	"    - checks image at <addr>"
 );
