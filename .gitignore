@@ -10,6 +10,8 @@
 *.gz
 .*depend*
 include/generated/
+include/config.h
+include/autoconf.mk
 u-boot
 u-boot.lds
 u-boot.map
