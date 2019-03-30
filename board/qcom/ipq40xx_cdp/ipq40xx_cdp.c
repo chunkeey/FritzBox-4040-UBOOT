@@ -423,6 +423,11 @@ void board_nand_init(void)
 		qpic_nand_init(&config);
 	}
 #endif
+
+#ifdef CONFIG_SPI_NAND_GIGA
+	spi_nand_init();
+#endif
+
 #ifdef CONFIG_IPQ40XX_SPI
 	ipq_spi_init(CONFIG_IPQ_SPI_NOR_INFO_IDX);
 #endif
