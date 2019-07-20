@@ -102,7 +102,7 @@ fritz/lzma2eva $UBOOT_LOADADDR $UBOOT_LOADADDR "$UBOOT_FRITZ.new" "$UBOOT_FRITZ"
 
 # The bootloader seems to add a TI checksum signature (8 Bytes) as part of the
 # "check mtd1" command in the FTP prompt. To make this easier we add spacer here.
-(cat "$UBOOT_FRITZ"; printf "\xff\xff\xff\xff\xff\xff\xff\xff" ) > $UBOOT_FRITZ.new
+printf "\xff\xff\xff\xff\xff\xff\xff\xff" >> $UBOOT_FRITZ
 
 # The next bit. The hshqs partition should be aligned to 0x100
 let size=$(stat -c%s "$UBOOT_FRITZ")
