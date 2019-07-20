@@ -63,7 +63,7 @@ cat "$FRITZ_DTB" "$FRITZ_DTB" "$FRITZ_DTB" "$FRITZ_DTB" >> $UBOOT_FRITZ
 rm -f "$FRITZ_DTB"
 
 # Add 512 bytes of pad area
-printf "%0.s\0" {1..512} >> $UBOOT_FRITZ
+dd if=/dev/zero bs=512 count=1 >> $UBOOT_FRITZ
 
 # This table links to the individual DTBs for every HWSubRevision.
 # A table entry consists of two 32-bit words.
@@ -92,7 +92,7 @@ mv "$UBOOT_FRITZ.new" "$UBOOT_FRITZ"
 
 
 # Add 64k bytes of pad area
-printf "%0.s\0" {1..65536} >> $UBOOT_FRITZ
+dd if=/dev/zero bs=1024 count=64 >> $UBOOT_FRITZ
 
 # Pack it with lzma
 fritz/lzma e "$UBOOT_FRITZ" -lc1 -lp2 -pb2 "$UBOOT_FRITZ.new"
@@ -107,7 +107,7 @@ fritz/lzma2eva $UBOOT_LOADADDR $UBOOT_LOADADDR "$UBOOT_FRITZ.new" "$UBOOT_FRITZ"
 # The next bit. The hshqs partition should be aligned to 0x100
 let size=$(stat -c%s "$UBOOT_FRITZ")
 let "pad = 256 - ( $size % 256) % 256"
-( printf "%0.s\377" {1..256} | dd conv=sync bs=$pad count=1 ) > $UBOOT_FRITZ.pad
+dd if=/dev/zero bs=$pad count=1 | tr '\0' '\377' > $UBOOT_FRITZ.pad
 
 cat "$UBOOT_FRITZ" "$UBOOT_FRITZ.pad" > $UBOOT_FRITZ.new
 
@@ -117,7 +117,7 @@ rm -f "$UBOOT_FRITZ.pad"
 
 # Apparently, EVA checks for the SquashFS filesystem MAGIC too. Likely for the rootfs
 # entry.
-(cat "$UBOOT_FRITZ"; echo "hsqs"; printf "%0.s\0" {1..124} ) > $UBOOT_FRITZ.new
+(cat "$UBOOT_FRITZ"; echo "hsqs"; dd if=/dev/zero bs=124 count=1 ) > $UBOOT_FRITZ.new
 
 # Make it so that this fits into 512k (Note: we have to add 8 Bytes for the final checksum
 # so 524280 is 512k - 8.
