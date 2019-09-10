@@ -195,6 +195,13 @@ int board_init(void)
 
 	gd->bd->bi_boot_params = QCA_BOOT_PARAMS_ADDR;
 	gd->bd->bi_arch_number = smem_get_board_platform_type();
+#ifdef CONFIG_AVM_MACHTYPE_OVERRIDE
+	/* 
+	 * Hack to override the machinetype, as otherwise
+	 * RGMII is not configured correctly
+	 */
+	gd->bd->bi_arch_number = CONFIG_AVM_MACHTYPE_OVERRIDE;
+#endif
 	gboard_param = get_board_param(gd->bd->bi_arch_number);
 
 	ret = smem_get_boot_flash(&sfi->flash_type,
