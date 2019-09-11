@@ -74,6 +74,7 @@ extern int qpic_nand_init(struct qpic_nand_init_config *config);
 extern void nand_env_relocate_spec(void);
 extern int ipq40xx_edma_init(ipq40xx_edma_board_cfg_t *edma_cfg);
 extern int ipq40xx_qca8075_phy_init(struct ipq40xx_eth_dev *cfg);
+extern int ipq40xx_qca8033_phy_init(struct ipq40xx_eth_dev *cfg);
 extern void ipq40xx_register_switch(
 	int (*sw_init)(struct ipq40xx_eth_dev *cfg));
 extern int mmc_env_init(void);
@@ -642,6 +643,7 @@ int board_eth_init(bd_t *bis)
 		break;
 	case MACH_TYPE_IPQ40XX_DB_DK01_1_C1:
 	case MACH_TYPE_IPQ40XX_DB_DK02_1_C1:
+		ipq40xx_register_switch(ipq40xx_qca8033_phy_init);
 		gpio = gboard_param->rgmii_gpio;
 		if (gpio) {
 			qca_configure_gpio(gpio, gboard_param->rgmii_gpio_count);
