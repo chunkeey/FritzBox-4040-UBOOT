@@ -11,6 +11,7 @@ This repository contains resources to build a second stage U-Boot bootloader for
    - fritz1200
    - fritz3000
    - fritz4040
+   - fritz7520
    - fritz7530
 
 3. The finished U-Boot will be placed in the root directory as `uboot-<boardname>.bin`.
@@ -58,6 +59,7 @@ Passive mode on.
 ### NAND-based
 This is compatible with the following models
 
+ - FRITZ!Box 7520
  - FRITZ!Box 7530
  - FRITZ!Repeater 1200
  - FRITZ!Repeater 3000
