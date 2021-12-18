@@ -69,6 +69,8 @@ enum imximage_version {
 	IMXIMAGE_V2
 };
 
+struct image_tool_params;
+
 typedef struct {
 	uint32_t type; /* Type of pointer (byte, halfword, word, wait/read) */
 	uint32_t addr; /* Address to write to */
@@ -171,6 +173,6 @@ typedef void (*set_dcd_rst_t)(struct imx_header *imxhdr,
 typedef void (*set_imx_hdr_t)(struct imx_header *imxhdr,
 					uint32_t dcd_len,
 					struct stat *sbuf,
-					struct mkimage_params *params);
+					struct image_tool_params *params);
 
 #endif /* _IMXIMAGE_H_ */

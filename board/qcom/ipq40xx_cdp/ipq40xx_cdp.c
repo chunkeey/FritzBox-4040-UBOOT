@@ -84,6 +84,7 @@ extern int fdt_node_set_part_info(void *blob, int parent_offset,
 					struct mtd_device *dev);
 #ifdef CONFIG_IPQ40XX_SPI
 extern int ipq_spi_init(u16 idx);
+extern int spi_nand_init(void);
 #endif
 #ifdef CONFIG_QCA_MMC
 qca_mmc mmc_host;
@@ -447,12 +448,8 @@ void board_nand_init(void)
 int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 {
 	s32 ret = 0 ;
-	u32 start_blocks;
-	u32 size_blocks;
 	u32 length = (6 * no_of_macs);
-	u32 flash_type;
 	loff_t art_offset;
-	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
 #ifdef CONFIG_QCA_MMC
 	block_dev_desc_t *blk_dev;
 	disk_partition_t disk_info;
@@ -481,7 +478,7 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 		return -EINVAL;
 	}
 
-	printf("Read %d bytes from 0%x\n", length, art_offset);
+	printf("Read %d bytes from 0%llx\n", length, art_offset);
 	if (length < sizeof(data))
 		return -EINVAL;
 
@@ -491,7 +488,7 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 		return -EINVAL;
 	}
 
-	eth_parse_enetaddr(&data[*urconfig - art_offset], enetaddr);
+	eth_parse_enetaddr((const char *)&data[*urconfig - art_offset], enetaddr);
 
 	printf("maca: %x:%x:%x:%x:%x:%x\n", enetaddr[0], enetaddr[1], enetaddr[2],
 		enetaddr[3], enetaddr[4], enetaddr[5]);
@@ -502,13 +499,18 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 		return -EINVAL;
 	}
 
-	eth_parse_enetaddr(&data[*urconfig - art_offset], &enetaddr[6]);
+	eth_parse_enetaddr((const char *)&data[*urconfig - art_offset], &enetaddr[6]);
 
 	printf("macb: %x:%x:%x:%x:%x:%x\n", enetaddr[6], enetaddr[7], enetaddr[8],
 		enetaddr[9], enetaddr[10], enetaddr[11]);
 
 	return 0;
 #else
+	u32 start_blocks;
+	u32 size_blocks;
+	u32 flash_type;
+	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
+
 	if (sfi->flash_type != SMEM_BOOT_MMC_FLASH) {
 		if (qca_smem_flash_info.flash_type == SMEM_BOOT_SPI_FLASH)
 			flash_type = CONFIG_IPQ_SPI_NOR_INFO_IDX;
@@ -603,6 +605,7 @@ int board_eth_init(bd_t *bis)
 {
 	u32 status;
 	gpio_func_data_t *gpio;
+	ipq40xx_edma_board_cfg_t *edma_cfg = gboard_param->edma_cfg;
 	ipq40xx_edma_common_init();
 	gpio = gboard_param->sw_gpio;
 	if (gpio) {
@@ -652,7 +655,7 @@ int board_eth_init(bd_t *bis)
 	default:
 		break;
 	}
-	status = ipq40xx_edma_init(gboard_param->edma_cfg);
+	status = ipq40xx_edma_init(edma_cfg);
 	return status;
 }
 
@@ -744,9 +747,6 @@ void ft_board_setup(void *blob, bd_t *bd)
 {
 	u64 memory_start = CONFIG_SYS_SDRAM_BASE;
 	u64 memory_size = gboard_param->ddr_size;
-	char *mtdparts = NULL;
-	char parts_str[256];
-	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
 
 	fdt_fixup_memory_banks(blob, &memory_start, &memory_size, 1);
 	ipq_fdt_fixup_version(blob);

@@ -243,7 +243,7 @@ int is_version_check_enabled()
 	return 0;
 }
 
-char *find_value(char *buffer, char *search, int size)
+char *find_value(const char *buffer, const char *search, int size)
 {
 	char *value = malloc(size * sizeof(char));
 	int i, j;
@@ -306,7 +306,7 @@ int get_sw_id_from_component_bin(struct image_section *section)
 
 	cert_offset = mbn_hdr->cert_ptr - mbn_hdr->image_dest_ptr + 40;
 	printf("Image with version information\n");
-	sw_version = find_value(fp + cert_offset, "SW_ID", 17);
+	sw_version = find_value((char *)fp + cert_offset, "SW_ID", 17);
 	if (sw_version != NULL) {
 		sw_version[8] = '\0';
 		sscanf(sw_version, "%x", &section->img_version);
@@ -391,7 +391,7 @@ int get_sw_id_from_component_bin_elf(struct image_section *section)
 
 	cert_offset = mbn_hdr->cert_ptr - mbn_hdr->image_dest_ptr + 40;
 	printf("Image with version information\n");
-	sw_version = find_value(fp + phdr->p_offset + cert_offset, "SW_ID", 17);
+	sw_version = find_value((char*)fp + phdr->p_offset + cert_offset, "SW_ID", 17);
 	if (sw_version) {
 		sw_version[8] = '\0';
 		sscanf(sw_version, "%x", &section->img_version);

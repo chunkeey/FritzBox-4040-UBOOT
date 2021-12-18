@@ -7,6 +7,7 @@
  */
 
 #include "dumpimage.h"
+#include "sysupgrade.h"
 #include <image.h>
 #include <version.h>
 

@@ -41,6 +41,8 @@
 	"flashme=run initubi; run delmisc; run extr sysup; reset\0" \
 	"preferred_nic=eth0\0"
 
+#undef XMK_STR
+#undef MK_STR
 /*
  * Enable commands
  */
