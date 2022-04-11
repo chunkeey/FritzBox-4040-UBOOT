@@ -1303,16 +1303,27 @@ static int qpic_nand_get_info(struct mtd_info *mtd, uint32_t flash_id)
 
 	mtd->size = MB_TO_BYTES(flash_dev->chipsize);
 	/*
-	* For older NAND flash, we obtained the flash information
-	* from the flash_dev table. For newer flashes the information
-	* is available in the cfg byte, in the NAND ID sequence.
-	*/
+	 * For older NAND flash, we obtained the flash information
+	 * from the flash_dev table. For newer flashes the information
+	 * is available in the cfg byte, in the NAND ID sequence.
+	 */
 	if (!flash_dev->pagesize)
 		qpic_nand_get_info_cfg(mtd, cfg_id);
 	else
 		qpic_nand_get_info_flash_dev(mtd, flash_dev);
 
-	dev->ecc_width = NAND_WITH_4_BIT_ECC;
+	switch (flash_id) {
+	case 0x1580f198:
+		printf("=================================\n");
+		printf("Fixup for Toshiba TC58NVG0S3HTA00\n");
+		printf("=================================\n");
+		dev->ecc_width = NAND_WITH_8_BIT_ECC;
+		mtd->oobsize = dev->spare_size = 128;
+		break;
+
+	default:
+		dev->ecc_width = NAND_WITH_4_BIT_ECC;
+	}
 
 	dev->num_blocks = mtd->size;
 	dev->num_blocks /= (dev->block_size);
