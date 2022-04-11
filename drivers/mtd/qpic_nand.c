@@ -1314,6 +1314,14 @@ static int qpic_nand_get_info(struct mtd_info *mtd, uint32_t flash_id)
 
 	dev->ecc_width = NAND_WITH_4_BIT_ECC;
 
+	if(man_id == 0x98 && dev_id == 0xf1 && cfg_id == 0x15) {
+		printf("=================================\n");
+		printf("Fixup for Toshiba TC58NVG0S3HTA00\n");
+		printf("=================================\n");
+		dev->ecc_width = NAND_WITH_8_BIT_ECC;
+		mtd->oobsize = dev->spare_size = 128;
+	}
+
 	dev->num_blocks = mtd->size;
 	dev->num_blocks /= (dev->block_size);
 	dev->num_pages_per_blk = dev->block_size / dev->page_size;
