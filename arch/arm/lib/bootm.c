@@ -28,6 +28,7 @@
 #include <common.h>
 #include <command.h>
 #include <image.h>
+#include <watchdog.h>
 #include <u-boot/zlib.h>
 #include <asm/byteorder.h>
 #include <linux/fdt.h>
@@ -102,6 +103,9 @@ static int fixup_memory_node(void *blob)
 static void announce_and_cleanup(void)
 {
 	printf("\nStarting kernel ...\n\n");
+#ifdef CONFIG_MODEL_HUAWEI_AP4050DN
+	WATCHDOG_RESET();
+#endif
 	bootstage_mark_name(BOOTSTAGE_ID_BOOTM_HANDOFF, "start_kernel");
 #ifdef CONFIG_BOOTSTAGE_REPORT
 	bootstage_report();

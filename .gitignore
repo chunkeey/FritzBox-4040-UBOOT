@@ -20,5 +20,9 @@ tools/dumpimage
 tools/mkenvimage
 tools/gen_eth_addr
 tools/envcrc
+tools/img2srec
 examples/standalone/hello_world
 examples/standalone/ubi_sysupgrade
+uImage*
+.vscode-ctags
+.vscode/

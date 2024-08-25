@@ -89,6 +89,10 @@ extern int spi_nand_init(void);
 #ifdef CONFIG_QCA_MMC
 qca_mmc mmc_host;
 #endif
+#ifdef CONFIG_HW_WATCHDOG
+void hw_watchdog_init(void);
+void hw_watchdog_reset(void);
+#endif
 
 /*
  * Don't have this as a '.bss' variable. The '.bss' and '.rel.dyn'
@@ -328,6 +332,10 @@ int board_late_init(void)
 		setenv_addr("machid", (void *)machid);
 		gd->bd->bi_arch_number = machid;
 	}
+
+#ifdef CONFIG_HW_WATCHDOG
+	hw_watchdog_init();
+#endif
 
 	return 0;
 }
@@ -609,7 +617,7 @@ int board_eth_init(bd_t *bis)
 	ipq40xx_edma_common_init();
 	gpio = gboard_param->sw_gpio;
 	if (gpio) {
-		printf("Configure GPIOS");
+		printf("Configure eth GPIOs\n");
 		qca_configure_gpio(gpio, gboard_param->sw_gpio_count);
 	}
 	switch (gboard_param->machid) {
@@ -1071,3 +1079,23 @@ void board_pci_deinit(void)
 	pcie_clock_disable(GCC_PCIE_AHB_CBCR);
 }
 #endif /* CONFIG_IPQ40XX_PCI */
+
+#ifdef CONFIG_MODEL_HUAWEI_AP4050DN
+
+void hw_watchdog_reset(void)
+{
+	static unsigned char state = 1;
+	/* Toggle the GPIO to reset the watchdog */
+	gpio_set_value(3, state ? GPIO_OUT_HIGH : GPIO_OUT_LOW);
+	state = state ? 0 : 1;
+}
+
+void hw_watchdog_init(void)
+{
+	gpio_tlmm_config(3, 0, GPIO_OUT_LOW,
+			GPIO_NO_PULL, GPIO_2MA, GPIO_OE_ENABLE,
+			GPIO_VM_ENABLE, GPIO_OD_DISABLE, GPIO_PULL_RES2);
+	hw_watchdog_reset();
+}
+
+#endif /* CONFIG_MODEL_HUAWEI_AP4050DN */
