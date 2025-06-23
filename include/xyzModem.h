@@ -58,6 +58,8 @@
 #ifndef _XYZMODEM_H_
 #define _XYZMODEM_H_
 
+#include <stdbool.h>
+
 #define xyzModem_xmodem 1
 #define xyzModem_ymodem 2
 /* Don't define this until the protocol support is in place */
@@ -96,14 +98,6 @@ typedef struct {
     struct sockaddr_in *server;
 #endif
 } connection_info_t;
-
-#ifndef	BOOL_WAS_DEFINED
-#define BOOL_WAS_DEFINED
-typedef unsigned int bool;
-#endif
-
-#define false 0
-#define true 1
 
 #endif
 

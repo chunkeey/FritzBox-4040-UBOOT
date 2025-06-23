@@ -20,6 +20,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 #include <linux/list.h>
+#include <stdbool.h>
 
 #define upper_32_bits(n) (u32)((n) >> 32)
 #define lower_32_bits(n) (u32)(n)
@@ -1200,11 +1201,6 @@ void xhci_hcd_stop(int index);
 
 /* true: Controller Not Ready to accept doorbell or op reg writes after reset */
 #define XHCI_STS_CNR		(1 << 11)
-
-#ifndef	BOOL_WAS_DEFINED
-#define BOOL_WAS_DEFINED
-typedef enum _bool{false,true} bool;
-#endif
 
 struct xhci_ctrl {
 	struct xhci_hccr *hccr;	/* R/O registers, not need for volatile */
