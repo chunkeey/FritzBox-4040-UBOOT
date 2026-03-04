@@ -1,6 +1,6 @@
 # FritzBox-4040-UBOOT
 
-This repository contains resources to build a second stage U-Boot bootloader for Qualcomm IPQ40xx based AVM routers.
+This repository contains resources to build a second stage U-Boot bootloader for Qualcomm IPQ40xx based AVM routers and Huawei access points.
 
 ## How to build
 
@@ -13,6 +13,7 @@ This repository contains resources to build a second stage U-Boot bootloader for
    - fritz4040
    - fritz7520
    - fritz7530
+   - huawei_ap4050dn
 
 3. The finished U-Boot will be placed in the root directory as `uboot-<boardname>.bin`.
 
@@ -69,4 +70,12 @@ The Bootloader can be loaded into the devices RAM using the EVA-ramboot script. 
 Example for the FRITZ!Box 7530:
 ```
 $ ./upload-to-ram.py --offset 0x88600000 192.168.178.1 uboot-fritz7530.bin
+```
+
+### Huawei AP4050DN
+
+The bootloader can be flashed from a rambooted OpenWRT image, as the U-Boot is only needed for booting a flashed OpenWRT. Please refer to the [OpenWRT Wiki](https://openwrt.org/toh/huawei/ap4050dn) for instructions on how to get OpenWRT running on this device.
+
+```sh
+mtd write /tmp/uImage uboot
 ```

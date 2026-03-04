@@ -510,7 +510,7 @@ void qca8075_ess_reset(void)
 
 void psgmii_self_test(void)
 {
-	int i, phy, j;
+	int i, phy, j, num_tries;
 	u32 value;
 	u32 phy_t_status;
 	u16 status;
@@ -544,7 +544,13 @@ void psgmii_self_test(void)
 	 */
 	qca8075_phy_reg_write(0, 0x1f, 0x10, 0x6800);
 
-	for (i = 0; i < 100; i++) {
+#ifdef CONFIG_MODEL_HUAWEI_AP4050DN
+	num_tries = 5;
+#else
+	num_tries = 100;
+#endif
+
+	for (i = 0; i < num_tries; i++) {
 		phy_t_status = 0;
 		for (phy = 0; phy < 5; phy++) {
 			value = readl(0xc00066c + (phy * 0xc));
@@ -652,9 +658,8 @@ void psgmii_self_test(void)
 			rx_counter_error = qca8075_phy_mmd_read(0, phy, 7, 0x802c);
 			tx_ok = tx_counter_ok + (tx_counter_ok_high16 << 16);
 			rx_ok = rx_counter_ok + (rx_counter_ok_high16 << 16);
-			debug("rx_ok: %d, tx_ok: %d", rx_ok, tx_ok);
-                        debug("rx_counter_error: %d, tx_counter_error: %d",
-						rx_counter_error, tx_counter_error);
+			debug("rx_ok: %d, tx_ok: %d, rx_counter_error: %d, tx_counter_error: %d\n",
+				rx_ok, tx_ok, rx_counter_error, tx_counter_error);
 			/*
 			 * Success
 			 */

@@ -1,6 +1,5 @@
-#!/bin/sh
+#!/bin/bash
 
-OPENWRT_OR_LEDE_TOOLCHAIN_FOR_ARM7=/mnt/build/lede/ac58u/staging_dir/toolchain-arm_cortex-a7+neon-vfpv4_gcc-8.1.0_musl_eabi/bin/
 BOARDNAME=$1
 
 die() {
@@ -38,6 +37,10 @@ USE_PRIVATE_LIBGCC=yes make || die "Failure during u-boot build"
 
 [ -e u-boot.bin ] || die "Build succeeded. But u-boot.bin wasn't created"
 
-fritz/fritzcreator.sh $BOARDNAME || die "Failure during Fritzing"
+if [[ $BOARDNAME == *"huawei"* ]]; then
+    huawei/huaweicreator.sh $BOARDNAME || die "Failure during Huawei creation"
+else
+    fritz/fritzcreator.sh $BOARDNAME || die "Failure during Fritzing"
+fi
 
 [ -e uboot-${BOARDNAME}.bin ] || die "No idea, but the uboot-${BOARDNAME}.bin wasn't created."
