@@ -1,0 +1,93 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Build with the OpenWrt ipq40xx toolchain so the result matches uboot-fritz4040
+  TOOLCHAIN_URL: https://downloads.openwrt.org/releases/25.12.5/targets/ipq40xx/generic/openwrt-toolchain-25.12.5-ipq40xx-generic_gcc-14.3.0_musl_eabi.Linux-x86_64.tar.zst
+  TOOLCHAIN_SHA256: 2284afb56cbeef040372b02b721f1657ce1eee8e1c024fb1a0188374b472ae51
+
+jobs:
+  build:
+    name: Build ${{ matrix.board }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - fritz1200
+          - fritz3000
+          - fritz4040
+          - fritz7520
+          - fritz7530
+          - huawei_ap4050dn
+    env:
+      BOARD: ${{ matrix.board }}
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends device-tree-compiler u-boot-tools zstd
+
+      - name: Download toolchain
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/toolchain.tar.zst" "$TOOLCHAIN_URL"
+          echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/toolchain.tar.zst" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/toolchain"
+          tar --zstd -xf "$RUNNER_TEMP/toolchain.tar.zst" -C "$RUNNER_TEMP/toolchain" --strip-components=1
+          rm "$RUNNER_TEMP/toolchain.tar.zst"
+
+      - name: Set up toolchain
+        run: |
+          toolchain=$(echo "$RUNNER_TEMP"/toolchain/toolchain-*)
+          echo "STAGING_DIR=$toolchain" >> "$GITHUB_ENV"
+          echo "$toolchain/bin" >> "$GITHUB_PATH"
+          "$toolchain/bin/arm-openwrt-linux-gcc" --version
+
+      # U-Boot is built with -msoft-float, which does not match the toolchain's
+      # libgcc, so link U-Boot's own copy (USE_PRIVATE_LIBGCC) like uboot-fritz4040
+      - name: Build U-Boot
+        run: |
+          make CROSS_COMPILE=arm-openwrt-linux- USE_PRIVATE_LIBGCC=yes "${BOARD}_config"
+          make -j"$(nproc)" CROSS_COMPILE=arm-openwrt-linux- USE_PRIVATE_LIBGCC=yes
+
+      - name: Create flashable image
+        run: |
+          case "$BOARD" in
+            huawei_*)
+              ./huawei/huaweicreator.sh "$BOARD"
+              # Rename it so the name contains the board name
+              cp uImage "uboot-$BOARD.uImage"
+              echo "IMAGE=uboot-$BOARD.uImage" >> "$GITHUB_ENV"
+              ;;
+            *)
+              ./fritz/fritzcreator.sh "$BOARD"
+              echo "IMAGE=uboot-$BOARD.bin" >> "$GITHUB_ENV"
+              ;;
+          esac
+
+      # Upload the flashable image
+      - name: Upload flashable image
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.IMAGE }}
+          archive: false
+          if-no-files-found: error
