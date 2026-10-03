@@ -47,7 +47,15 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends device-tree-compiler u-boot-tools zstd
 
+      - name: Restore toolchain from cache
+        id: toolchain-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/toolchain
+          key: openwrt-toolchain-${{ runner.os }}-${{ env.TOOLCHAIN_SHA256 }}
+
       - name: Download toolchain
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
         run: |
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/toolchain.tar.zst" "$TOOLCHAIN_URL"
           echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/toolchain.tar.zst" | sha256sum -c -
