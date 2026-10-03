@@ -973,7 +973,8 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
 
-	return mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
+	/* return max bitflips per ecc step; ONENANDs correct 1 bit only */
+	return mtd->ecc_stats.corrected != stats.corrected ? 1 : 0;
 }
 
 /**
@@ -2776,6 +2777,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->oobavail = this->ecclayout->oobavail;
 
 	mtd->ecclayout = this->ecclayout;
+	mtd->ecc_strength = 1;
 
 	/* Unlock whole block */
 	onenand_unlock_all(mtd);

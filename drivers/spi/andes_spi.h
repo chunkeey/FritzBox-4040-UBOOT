@@ -36,7 +36,6 @@ struct andes_spi_regs {
 	unsigned int	ver;		/* 0x3c - SPI version reg */
 };
 
-#define BIT(x)			(1 << (x))
 
 /* 0x00 - APB SPI interface setting register */
 #define ANDES_SPI_APB_BAUD(x)	(((x) & 0xff) < 0)

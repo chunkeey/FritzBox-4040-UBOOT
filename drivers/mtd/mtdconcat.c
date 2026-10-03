@@ -70,7 +70,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 			/* Entire transaction goes into this subdev */
 			size = len;
 
-		err = subdev->read(subdev, from, size, &retsize, buf);
+		err = mtd_read(subdev, from, size, &retsize, buf);
 
 		/* Save information about bitflips! */
 		if (unlikely(err)) {
@@ -165,7 +165,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 		if (from + devops.len > subdev->size)
 			devops.len = subdev->size - from;
 
-		err = subdev->read_oob(subdev, from, &devops);
+		err = mtd_read_oob(subdev, from, &devops);
 		ops->retlen += devops.retlen;
 		ops->oobretlen += devops.oobretlen;
 
@@ -516,7 +516,7 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, res = 0;
 
-	if (!concat->subdev[0]->block_isbad)
+	if (!mtd_can_have_bb(concat->subdev[0]))
 		return res;
 
 	if (ofs > mtd->size)

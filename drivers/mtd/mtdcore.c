@@ -19,6 +19,10 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	BUG_ON(mtd->writesize == 0);
 
+	/* default value if not set by driver */
+	if (mtd->bitflip_threshold == 0)
+		mtd->bitflip_threshold = mtd->ecc_strength;
+
 	for (i = 0; i < MAX_MTD_DEVICES; i++)
 		if (!mtd_table[i]) {
 			mtd_table[i] = mtd;

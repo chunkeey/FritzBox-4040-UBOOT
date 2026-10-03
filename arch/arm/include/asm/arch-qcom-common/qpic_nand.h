@@ -121,6 +121,8 @@
 #define NAND_ERASED_CW_DETECT_STATUS_PAGE_ALL_ERASED		7
 #define NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ALL_ERASED	6
 #define NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ERASED		4
+#define NAND_CW_ERASED	(BIT(NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ERASED) | \
+			 BIT(NAND_ERASED_CW_DETECT_STATUS_CODEWORD_ALL_ERASED))
 
 #define NAND_ERASED_CW_DETECT_CFG_RESET_CTRL		1
 #define NAND_ERASED_CW_DETECT_CFG_ACTIVATE_CTRL		0
@@ -138,6 +140,7 @@
 #define NAND_CMD_PRG_PAGE_ALL				0x39
 #define NAND_CMD_BLOCK_ERASE				0x3A
 #define NAND_CMD_FETCH_ID				0x0B
+#define NAND_CMD_RESET_DEVICE				0x0D
 /* NAND Status errors */
 #define NAND_FLASH_MPU_ERR				(1 << 8)
 #define NAND_FLASH_TIMEOUT_ERR				(1 << 6)
@@ -149,6 +152,8 @@
 
 #define PROG_ERASE_OP_RESULT			(1 << 7)
 
+/* NAND buffer status */
+#define NAND_BUFFER_UNCORRECTABLE		(1 << 8)
 #define NUM_ERRORS_MASK				0x0000001f
 #define NUM_ERRORS(i)				((i) << 0)
 
@@ -268,8 +273,7 @@ typedef enum {
 	NANDC_RESULT_TIMEOUT = 2,
 	NANDC_RESULT_PARAM_INVALID = 3,
 	NANDC_RESULT_DEV_NOT_SUPPORTED = 4,
-	NANDC_RESULT_BAD_PAGE = 5,
-	NANDC_RESULT_BAD_BLOCK = 6,
+	NANDC_RESULT_BAD_BLOCK = 5,
 } nand_result_t;
 
 enum nand_bad_block_value
@@ -385,10 +389,10 @@ struct qpic_nand_init_config
 	struct qpic_nand_bam_pipes pipes;
 };
 
-enum nand_ecc_width
-{
-	NAND_WITH_4_BIT_ECC,
-	NAND_WITH_8_BIT_ECC,
+struct read_stats {
+	uint32_t flash_sts;
+	uint32_t buffer_sts;
+	uint32_t erased_cw_sts;
 };
 
 struct qpic_nand_dev {
@@ -400,7 +404,6 @@ struct qpic_nand_dev {
 	unsigned block_size;
 	unsigned spare_size;
 	unsigned num_blocks;
-	enum nand_ecc_width ecc_width;
 	unsigned num_pages_per_blk;
 	unsigned num_pages_per_blk_mask;
 	unsigned widebus;
@@ -408,6 +411,9 @@ struct qpic_nand_dev {
 	unsigned cw_size;
 	unsigned cws_per_page;
 	unsigned bad_blk_loc;
+	unsigned ecc_bytes_hw;
+	unsigned spare_bytes;
+	unsigned bbm_size;
 	unsigned dev_cfg;
 	uint32_t cfg0;
 	uint32_t cfg1;
@@ -420,6 +426,9 @@ struct qpic_nand_dev {
 	unsigned char *pad_oob;
 	unsigned char *zero_page;
 	unsigned char *zero_oob;
+	unsigned char *tmp_datbuf;
+	unsigned char *tmp_oobbuf;
+	struct read_stats stats[QPIC_NAND_MAX_CWS_IN_PAGE];
 };
 
 #endif

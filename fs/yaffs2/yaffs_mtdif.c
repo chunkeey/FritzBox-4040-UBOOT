@@ -153,7 +153,7 @@ int nandmtd_ReadChunkFromNAND(yaffs_Device * dev, int chunkInNAND, __u8 * data,
 	__u8 spareAsBytes[8]; /* OOB */
 
 	if (data && !spare)
-		retval = mtd->read(mtd, addr, dev->nDataBytesPerChunk,
+		retval = mtd_read(mtd, addr, dev->nDataBytesPerChunk,
 				&dummy, data);
 	else if (spare) {
 		if (dev->useNANDECC) {
@@ -167,7 +167,7 @@ int nandmtd_ReadChunkFromNAND(yaffs_Device * dev, int chunkInNAND, __u8 * data,
 		ops.datbuf = data;
 		ops.ooboffs = 0;
 		ops.oobbuf = spareAsBytes;
-		retval = mtd->read_oob(mtd, addr, &ops);
+		retval = mtd_read_oob(mtd, addr, &ops);
 		if (dev->useNANDECC)
 			translate_oob2spare(spare, spareAsBytes);
 	}
@@ -193,7 +193,7 @@ int nandmtd_ReadChunkFromNAND(yaffs_Device * dev, int chunkInNAND, __u8 * data,
 	} else {
 		if (data)
 			retval =
-			    mtd->read(mtd, addr, dev->nDataBytesPerChunk, &dummy,
+			    mtd_read(mtd, addr, dev->nDataBytesPerChunk, &dummy,
 				      data);
 		if (spare)
 			retval =

@@ -8,6 +8,8 @@
 #define __MTD_MTD_H__
 
 #include <linux/types.h>
+#include <asm/errno.h>
+#include <linux/compiler.h>
 #include <div64.h>
 #include <linux/mtd/mtd-abi.h>
 
@@ -140,6 +142,16 @@ struct mtd_info {
 	/* ecc layout structure pointer - read only ! */
 	struct nand_ecclayout *ecclayout;
 
+	/* max number of correctible bit errors per ecc step */
+	unsigned int ecc_strength;
+
+	/*
+	 * read ops return -EUCLEAN if max number of bitflips corrected on any
+	 * one region comprising an ecc step equals or exceeds this value.
+	 * Settable by driver, else defaults to ecc_strength.
+	 */
+	unsigned int bitflip_threshold;
+
 	/* Data for variable erase regions. If numeraseregions is zero,
 	 * it means that the whole device has erasesize as given above.
 	 */
@@ -236,6 +248,48 @@ struct mtd_info {
 	void (*put_device) (struct mtd_info *mtd);
 };
 
+static inline int mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf)
+{
+	int ret_code;
+
+	/*
+	 * In the absence of an error, drivers return a non-negative integer
+	 * representing the maximum number of bitflips that were corrected on
+	 * any one ecc region (if applicable; zero otherwise).
+	 */
+	ret_code = mtd->read(mtd, from, len, retlen, buf);
+	if (unlikely(ret_code < 0))
+		return ret_code;
+	if (mtd->ecc_strength == 0)
+		return 0;	/* device lacks ecc */
+	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
+}
+
+static inline int mtd_read_oob(struct mtd_info *mtd, loff_t from,
+			       struct mtd_oob_ops *ops)
+{
+	int ret_code;
+
+	/*
+	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
+	 * similar to mtd->_read(), returning a non-negative integer
+	 * representing max bitflips. In other cases, mtd->_read_oob() may
+	 * return -EUCLEAN. In all cases, perform similar logic to mtd_read().
+	 */
+	ret_code = mtd->read_oob(mtd, from, ops);
+	if (unlikely(ret_code < 0))
+		return ret_code;
+	if (mtd->ecc_strength == 0)
+		return 0;	/* device lacks ecc */
+	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
+}
+
+static inline int mtd_can_have_bb(const struct mtd_info *mtd)
+{
+	return !!mtd->block_isbad;
+}
+
 static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
 {
 	do_div(sz, mtd->erasesize);
@@ -308,5 +362,17 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 			printk(KERN_INFO args);		\
 	} while(0)
 #endif /* CONFIG_MTD_DEBUG */
+
+static inline int mtd_is_bitflip(int err) {
+	return err == -EUCLEAN;
+}
+
+static inline int mtd_is_eccerr(int err) {
+	return err == -EBADMSG;
+}
+
+static inline int mtd_is_bitflip_or_eccerr(int err) {
+	return mtd_is_bitflip(err) || mtd_is_eccerr(err);
+}
 
 #endif /* __MTD_MTD_H__ */

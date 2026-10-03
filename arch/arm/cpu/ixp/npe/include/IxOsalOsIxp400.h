@@ -47,7 +47,6 @@
 #ifndef IxOsalOsIxp400_H
 #define IxOsalOsIxp400_H
 
-#define BIT(x) (1<<(x))
 
 #define IXP425_EthA_BASE	0xc8009000
 #define IXP425_EthB_BASE	0xc800a000

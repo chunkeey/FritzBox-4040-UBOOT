@@ -19,7 +19,6 @@
 #define JZ_NAND_CMD_ADDR (JZ_NAND_DATA_ADDR + 0x8000)
 #define JZ_NAND_ADDR_ADDR (JZ_NAND_DATA_ADDR + 0x10000)
 
-#define BIT(x) (1 << (x))
 #define JZ_NAND_ECC_CTRL_ENCODING	BIT(3)
 #define JZ_NAND_ECC_CTRL_RS		BIT(2)
 #define JZ_NAND_ECC_CTRL_RESET		BIT(1)
@@ -253,6 +252,11 @@ int board_nand_init(struct nand_chip *nand)
 	nand->ecc.mode		= NAND_ECC_HW_OOB_FIRST;
 	nand->ecc.size		= CONFIG_SYS_NAND_ECCSIZE;
 	nand->ecc.bytes		= CONFIG_SYS_NAND_ECCBYTES;
+	nand->ecc.strength	= 2;
+	/*
+	 * FIXME: ecc_strength value of 2 bits per 512 bytes of data is a
+	 * conservative guess, given 9 ecc bytes and reed-solomon alg.
+	 */
 	nand->ecc.layout	= &qi_lb60_ecclayout_2gb;
 	nand->chip_delay	= 50;
 	nand->options		= NAND_USE_FLASH_BBT;

@@ -114,6 +114,7 @@ static int atmel_nand_read_page(struct mtd_info *mtd,
 	uint8_t *oob = chip->oob_poi;
 	uint8_t *ecc_pos;
 	int stat;
+	unsigned int max_bitflips = 0;
 
 	/* read the page */
 	chip->read_buf(mtd, p, eccsize);
@@ -137,10 +138,12 @@ static int atmel_nand_read_page(struct mtd_info *mtd,
 	/* check if there's an error */
 	stat = chip->ecc.correct(mtd, p, oob, NULL);
 
-	if (stat < 0)
+	if (stat < 0) {
 		mtd->ecc_stats.failed++;
-	else
+	} else {
 		mtd->ecc_stats.corrected += stat;
+		max_bitflips = max_t(unsigned int, max_bitflips, stat);
+	}
 
 	/* get back to oob start (end of page) */
 	chip->cmdfunc(mtd, NAND_CMD_RNDOUT, mtd->writesize, -1);
@@ -148,7 +151,7 @@ static int atmel_nand_read_page(struct mtd_info *mtd,
 	/* read the oob */
 	chip->read_buf(mtd, oob, mtd->oobsize);
 
-	return 0;
+	return max_bitflips;
 }
 
 /*
@@ -291,6 +294,7 @@ int board_nand_init(struct nand_chip *nand)
 	nand->ecc.hwctl = atmel_nand_hwctl;
 	nand->ecc.read_page = atmel_nand_read_page;
 	nand->ecc.bytes = 4;
+	nand->ecc.strength = 1;
 #endif
 
 #ifdef CONFIG_ATMEL_NAND_HWECC

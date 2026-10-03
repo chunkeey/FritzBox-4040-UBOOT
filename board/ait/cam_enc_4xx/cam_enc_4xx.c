@@ -128,6 +128,7 @@ davinci_std_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsteps = chip->ecc.steps;
 	uint8_t *p = buf;
 	uint8_t *oob = chip->oob_poi;
+	unsigned int max_bitflips = 0;
 
 	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0x0, page & this->pagemask);
 
@@ -148,10 +149,12 @@ davinci_std_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 
 		stat = chip->ecc.correct(mtd, p, oob, NULL);
 
-		if (stat == -1)
+		if (stat == -1) {
 			mtd->ecc_stats.failed++;
-		else
+		} else {
 			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
+		}
 
 		oob += eccbytes;
 
@@ -164,7 +167,7 @@ davinci_std_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 	if (i)
 		chip->read_buf(mtd, oob, i);
 
-	return 0;
+	return max_bitflips;
 }
 
 static void davinci_std_write_page_syndrome(struct mtd_info *mtd,

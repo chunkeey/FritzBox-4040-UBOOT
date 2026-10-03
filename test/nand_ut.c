@@ -49,7 +49,7 @@ static int read_page_raw(nand_info_t *nand, loff_t offs, uint8_t *buf)
 	ops.datbuf = buf;
 	ops.oobbuf = buf + PAGE_LEN(nand, 1);
 
-	return nand->read_oob(nand, offs, &ops);
+	return mtd_read_oob(nand, offs, &ops);
 }
 
 static int write_page_raw(nand_info_t *nand, loff_t offs, uint8_t *buf)
@@ -82,7 +82,7 @@ static int read_pages_oob(nand_info_t *nand, loff_t offs, uint8_t *datbuf,
 	ops.datbuf = datbuf;
 	ops.oobbuf = oobbuf;
 
-	return nand->read_oob(nand, offs, &ops);
+	return mtd_read_oob(nand, offs, &ops);
 }
 
 static int write_pages_oob(nand_info_t *nand, loff_t offs, uint8_t *datbuf,

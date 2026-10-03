@@ -21,6 +21,7 @@
 #define kzalloc(size, flags)	calloc(size, 1)
 #define vmalloc(size)		malloc(size)
 #define kfree(ptr)		free(ptr)
+#define kstrdup(s, flags)	strdup(s)
 #define vfree(ptr)		free(ptr)
 
 #define DECLARE_WAITQUEUE(...)	do { } while (0)
@@ -52,4 +53,16 @@
 				  , __FILE__, __LINE__); }
 
 #define PAGE_SIZE	4096
+
+/*
+ * Multiplies an integer by a fraction, while avoiding unnecessary
+ * overflow or loss of precision.
+ */
+#define mult_frac(x, numer, denom)(			\
+{							\
+	typeof(x) quot = (x) / (denom);			\
+	typeof(x) rem  = (x) % (denom);			\
+	(quot * (numer)) + ((rem * (numer)) / (denom));	\
+}							\
+)
 #endif

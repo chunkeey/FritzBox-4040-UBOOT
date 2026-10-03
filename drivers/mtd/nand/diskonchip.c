@@ -1073,7 +1073,7 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 	size_t retlen;
 
 	for (offs = 0; offs < mtd->size; offs += mtd->erasesize) {
-		ret = mtd->read(mtd, offs, mtd->writesize, &retlen, buf);
+		ret = mtd_read(mtd, offs, mtd->writesize, &retlen, buf);
 		if (retlen != mtd->writesize)
 			continue;
 		if (ret) {
@@ -1098,7 +1098,7 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 	/* Only one mediaheader was found.  We want buf to contain a
 	   mediaheader on return, so we'll have to re-read the one we found. */
 	offs = doc->mh0_page << this->page_shift;
-	ret = mtd->read(mtd, offs, mtd->writesize, &retlen, buf);
+	ret = mtd_read(mtd, offs, mtd->writesize, &retlen, buf);
 	if (retlen != mtd->writesize) {
 		/* Insanity.  Give up. */
 		printk(KERN_ERR "Read DiskOnChip Media Header once, but can't reread it???\n");
@@ -1658,6 +1658,7 @@ static int __init doc_probe(unsigned long physadr)
 	nand->ecc.mode		= NAND_ECC_HW_SYNDROME;
 	nand->ecc.size		= 512;
 	nand->ecc.bytes		= 6;
+	nand->ecc.strength	= 2;
 	nand->options		= NAND_USE_FLASH_BBT;
 
 	doc->physadr		= physadr;

@@ -66,6 +66,7 @@ struct fsl_ifc_ctrl {
 	unsigned int status;     /* status read from NEESR after last op  */
 	unsigned int oob;        /* Non zero if operating on OOB data     */
 	unsigned int eccread;    /* Non zero for a full-page ECC read     */
+	unsigned int max_bitflips;  /* Saved during READ0 cmd		  */
 };
 
 static struct fsl_ifc_ctrl *ifc_ctrl;
@@ -265,6 +266,8 @@ static int fsl_ifc_run_command(struct mtd_info *mtd)
 	if (ctrl->status & IFC_NAND_EVTER_STAT_WPER)
 		printf("%s: Write Protect Error\n", __func__);
 
+	ctrl->max_bitflips = 0;
+
 	if (ctrl->eccread) {
 		int errors;
 		int bufnum = ctrl->page & priv->bufnum_mask;
@@ -293,6 +296,9 @@ static int fsl_ifc_run_command(struct mtd_info *mtd)
 			}
 
 			mtd->ecc_stats.corrected += errors;
+			ctrl->max_bitflips = max_t(unsigned int,
+						   ctrl->max_bitflips,
+						   errors);
 		}
 
 		ctrl->eccread = 0;
@@ -698,7 +704,7 @@ static int fsl_ifc_read_page(struct mtd_info *mtd,
 	if (ctrl->status != IFC_NAND_EVTER_STAT_OPC)
 		mtd->ecc_stats.failed++;
 
-	return 0;
+	return ctrl->max_bitflips;
 }
 
 /* ECC will be calculated automatically, and errors will be detected in
@@ -828,11 +834,13 @@ int board_nand_init(struct nand_chip *nand)
 			bbt_mirror_descr.offs = 0;
 		}
 
+		nand->ecc.strength = 4;
 		priv->bufnum_mask = 15;
 		break;
 
 	case CSOR_NAND_PGS_2K:
 		layout = &oob_2048_ecc4;
+		nand->ecc.strength = 4;
 		priv->bufnum_mask = 3;
 		break;
 
@@ -840,8 +848,10 @@ int board_nand_init(struct nand_chip *nand)
 		if ((csor & CSOR_NAND_ECC_MODE_MASK) ==
 		    CSOR_NAND_ECC_MODE_4) {
 			layout = &oob_4096_ecc4;
+			nand->ecc.strength = 4;
 		} else {
 			layout = &oob_4096_ecc8;
+			nand->ecc.strength = 8;
 			nand->ecc.bytes = 16;
 		}
 

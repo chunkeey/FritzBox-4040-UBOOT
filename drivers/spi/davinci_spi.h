@@ -49,7 +49,6 @@ struct davinci_spi_regs {
 	dv_reg	intvec1;	/* 0x64 */
 };
 
-#define BIT(x)			(1 << (x))
 
 /* SPIGCR0 */
 #define SPIGCR0_SPIENA_MASK	0x1

@@ -274,6 +274,7 @@ void omap_nand_switch_ecc(int32_t hardware)
 		nand->ecc.layout = &hw_nand_oob;
 		nand->ecc.size = 512;
 		nand->ecc.bytes = 3;
+		nand->ecc.strength = 1;
 		nand->ecc.hwctl = omap_enable_hwecc;
 		nand->ecc.correct = omap_correct_data;
 		nand->ecc.calculate = omap_calculate_ecc;
@@ -357,6 +358,7 @@ int board_nand_init(struct nand_chip *nand)
 	nand->ecc.layout = &hw_nand_oob;
 	nand->ecc.size = CONFIG_SYS_NAND_ECCSIZE;
 	nand->ecc.bytes = CONFIG_SYS_NAND_ECCBYTES;
+	nand->ecc.strength = 1;
 	nand->ecc.hwctl = omap_enable_hwecc;
 	nand->ecc.correct = omap_correct_data;
 	nand->ecc.calculate = omap_calculate_ecc;
