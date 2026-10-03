@@ -51,6 +51,7 @@
 #include <asm/arch-qcom-common/qpic_nand.h>
 #endif
 #include <mtd_node.h>
+#include <linux/libfdt.h>
 #include <jffs2/load_kernel.h>
 #include <asm/arch-qcom-common/clk.h>
 #include <asm/arch-ipq40xx/smem.h>
@@ -191,6 +192,17 @@ void env_relocate_spec(void)
 
 };
 
+#if defined CONFIG_AVM_EVA_MAC_EXTRACT
+/*
+ * EVA passes its environment as properties of /chosen in one of the
+ * device trees of its DTB table.
+ */
+#define AVM_EVA_VIRT_OFFSET	0x40000000	/* 0xC0000000 -> 0x80000000 */
+#define AVM_EVA_DTB_MAX		16
+
+static u32 avm_eva_dtb_table;	/* pointer to EVA's DTB table */
+#endif
+
 int board_init(void)
 {
 	int ret;
@@ -198,6 +210,11 @@ int board_init(void)
 	uint32_t size_blocks;
 
 	qca_smem_flash_info_t *sfi = &qca_smem_flash_info;
+
+#if defined CONFIG_AVM_EVA_MAC_EXTRACT
+	/* mem_malloc_init() clears the word in front of U-Boot later on. */
+	avm_eva_dtb_table = readl(CONFIG_SYS_TEXT_BASE - 4);
+#endif
 
 	gd->bd->bi_boot_params = QCA_BOOT_PARAMS_ADDR;
 	gd->bd->bi_arch_number = smem_get_board_platform_type();
@@ -450,6 +467,72 @@ void board_nand_init(void)
 #endif
 }
 
+#if defined CONFIG_AVM_EVA_MAC_EXTRACT
+static const void *avm_eva_addr(u32 addr, u32 size)
+{
+	u32 start = CONFIG_SYS_SDRAM_BASE;
+	u32 end = CONFIG_SYS_SDRAM_BASE + gd->ram_size;
+
+	addr -= AVM_EVA_VIRT_OFFSET;
+	if (addr < start || addr > end - size || addr & 3)
+		return NULL;
+
+	return (const void *)addr;
+}
+
+static const char *avm_eva_getenv(const void *fdt, int node, const char *name)
+{
+	const char *val;
+	int len;
+
+	val = fdt_getprop(fdt, node, name, &len);
+	if (!val || len < 1 || val[len - 1] != '\0')
+		return NULL;
+
+	return val;
+}
+
+static int avm_eva_fdt_mac(uchar *enetaddr)
+{
+	const u32 *table, *entry;
+	const char *maca, *macb;
+	const void *fdt;
+	int i, node;
+
+	table = avm_eva_addr(avm_eva_dtb_table, 4);
+	if (!table)
+		return -ENOENT;
+
+	entry = avm_eva_addr(table[0], 8 * AVM_EVA_DTB_MAX);
+	if (!entry)
+		return -ENOENT;
+
+	for (i = 0; i < AVM_EVA_DTB_MAX && entry[1]; i++, entry += 2) {
+		fdt = avm_eva_addr(entry[1], sizeof(struct fdt_header));
+		if (!fdt || fdt_check_header(fdt) ||
+		    !avm_eva_addr(entry[1], fdt_totalsize(fdt)))
+			continue;
+
+		node = fdt_path_offset(fdt, "/chosen");
+		if (node < 0)
+			continue;
+
+		maca = avm_eva_getenv(fdt, node, "maca");
+		macb = avm_eva_getenv(fdt, node, "macb");
+		if (!maca || !macb)
+			continue;
+
+		eth_parse_enetaddr(maca, enetaddr);
+		eth_parse_enetaddr(macb, &enetaddr[6]);
+		printf("maca: %s\n", maca);
+		printf("macb: %s\n", macb);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+#endif
+
 /*
  * Gets the ethernet address from the ART partition table and return the value
  */
@@ -470,6 +553,11 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 
 	/* ART partition 0th position will contain Mac address. */
 	u8 data[1024];
+
+	if (!avm_eva_fdt_mac(enetaddr))
+		return 0;
+
+	printf("No MAC address in the EVA device tree\n");
 	length = sizeof(data);
 	art_offset = CONFIG_AVM_EVA_CFG_OFFSET;
 
