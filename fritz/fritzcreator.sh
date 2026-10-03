@@ -21,6 +21,12 @@ FRITZ_DTB="${BOARDNAME}.dtb"
 UBOOT_LOADADDR=0x841FFFF8
 DTC="${DTC:-dtc}"
 
+# header + u-boot.bin are padded to 1M
+UBOOT_PAD_SIZE=1048576
+
+# The EVA image is padded to 512k minus the 8-byte TI checksum
+EVA_IMAGE_SIZE=524280
+
 rm -f "$UBOOT_FRITZ"
 
 # Can you guys *PLEASE* switch to FIT?!
@@ -52,8 +58,16 @@ printf "\x00\x00\x00\xea\xf8\x01\x33\xc4" > $UBOOT_FRITZ
 
 cat "$UBOOT_BIN" >> "$UBOOT_FRITZ"
 
+# Fail if u-boot does not fit into 1M, dd otherwise would silently cut it off
+size=$(stat -c%s "$UBOOT_FRITZ")
+if [ "$size" -gt "$UBOOT_PAD_SIZE" ]; then
+	echo "Error: $UBOOT_FRITZ (header + $UBOOT_BIN) is $size bytes, limit is $UBOOT_PAD_SIZE bytes" >&2
+	rm -f "$UBOOT_FRITZ" "$UBOOT_FRITZ.new"
+	exit 1
+fi
+
 # Pad file to 1M
-dd if="$UBOOT_FRITZ" of="$UBOOT_FRITZ.new" bs=1024k count=1 conv=sync
+dd if="$UBOOT_FRITZ" of="$UBOOT_FRITZ.new" bs=$UBOOT_PAD_SIZE count=1 conv=sync
 mv "$UBOOT_FRITZ.new" "$UBOOT_FRITZ"
 
 # Compile DTS
@@ -120,9 +134,17 @@ rm -f "$UBOOT_FRITZ.pad"
 # entry.
 (cat "$UBOOT_FRITZ"; echo "hsqs"; dd if=/dev/zero bs=124 count=1 ) > $UBOOT_FRITZ.new
 
+# Fail if the image does not fit, dd otherwise would silently cut it off
+size=$(stat -c%s "$UBOOT_FRITZ.new")
+if [ "$size" -gt "$EVA_IMAGE_SIZE" ]; then
+	echo "Error: $UBOOT_FRITZ.new (EVA image) is $size bytes, limit is $EVA_IMAGE_SIZE bytes" >&2
+	rm -f "$UBOOT_FRITZ" "$UBOOT_FRITZ.new"
+	exit 1
+fi
+
 # Make it so that this fits into 512k (Note: we have to add 8 Bytes for the final checksum
 # so 524280 is 512k - 8.
-dd if="$UBOOT_FRITZ.new" of="$UBOOT_FRITZ" conv=sync bs=524280 count=1
+dd if="$UBOOT_FRITZ.new" of="$UBOOT_FRITZ" conv=sync bs=$EVA_IMAGE_SIZE count=1
 rm "$UBOOT_FRITZ.new"
 
 fritz/tichksum -a "$UBOOT_FRITZ"
