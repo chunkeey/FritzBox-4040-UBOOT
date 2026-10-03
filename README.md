@@ -61,6 +61,7 @@ Passive mode on.
 This is compatible with the following models
 
  - FRITZ!Box 7520
+ - FRITZ!Box 7520 v2
  - FRITZ!Box 7530
  - FRITZ!Repeater 1200
  - FRITZ!Repeater 3000
