@@ -450,6 +450,33 @@ void board_nand_init(void)
 #endif
 }
 
+#if defined CONFIG_AVM_EVA_MAC_EXTRACT_NEW
+
+struct var_table_entry {
+	u32 value;
+	u32 key;
+};
+
+struct urconfig {
+	u8 resv1[0x98];
+	struct var_table_entry mac_addr_entries[];
+};
+
+static const void *
+urconfig_offset(const struct urconfig *urconfig, size_t len, u32 offset)
+{
+	if ((s32)offset < 0)
+		return NULL;
+
+	s32 delta = (s32)offset - CONFIG_AVM_EVA_CFG_OFFSET;
+	if (delta < 0 || (u32)delta >= (len - 1))
+		return NULL;
+
+	return (const char *)urconfig + delta;
+};
+
+#endif
+
 /*
  * Gets the ethernet address from the ART partition table and return the value
  */
@@ -466,8 +493,6 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 #endif
 
 #if defined CONFIG_AVM_EVA_MAC_EXTRACT
-	const u32 *urconfig;
-
 	/* ART partition 0th position will contain Mac address. */
 	u8 data[1024];
 	length = sizeof(data);
@@ -490,6 +515,45 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 	if (length < sizeof(data))
 		return -EINVAL;
 
+	/* NUL termination for the off chance that the variable offsets point
+	 * at the end of the data array
+	 */
+	data[sizeof(data) - 1] = 0;
+
+#if defined CONFIG_AVM_EVA_MAC_EXTRACT_NEW
+
+	const struct urconfig *urconfig = (const struct urconfig *)data;
+	uint i;
+
+	for (i = 0; i < no_of_macs; i++) {
+		const struct var_table_entry *entry =
+			&urconfig->mac_addr_entries[i];
+		const char *key = urconfig_offset(urconfig, sizeof(data),
+						  entry->key);
+		const char *value = urconfig_offset(urconfig, sizeof(data),
+						    entry->value);
+		uchar *dest = &enetaddr[6 * i];
+
+		if (!key || !value)
+			continue;
+
+		eth_parse_enetaddr(value, dest);
+		if (!is_valid_ether_addr(dest))
+			continue;
+
+		printf("MAC %d (%s): %x:%x:%x:%x:%x:%x\n", i, key,
+		       dest[0], dest[1], dest[2], dest[3], dest[4], dest[5]);
+	}
+
+	return 0;
+
+#else
+
+	const u32 *urconfig;
+
+	if (no_of_macs < 1)
+		return 0;
+
 	urconfig = (const u32 *)&data[0x98];
 	if (*urconfig > (art_offset + length - 6) || *urconfig < art_offset) {
 		printf("maca pointer invalid: %x\n", *urconfig);
@@ -500,6 +564,9 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 
 	printf("maca: %x:%x:%x:%x:%x:%x\n", enetaddr[0], enetaddr[1], enetaddr[2],
 		enetaddr[3], enetaddr[4], enetaddr[5]);
+
+	if (no_of_macs < 2)
+		return 0;
 
 	urconfig = (const uint32_t *)&data[0xA0];
 	if (*urconfig > (art_offset + length - 6) || *urconfig < art_offset) {
@@ -513,7 +580,10 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 		enetaddr[9], enetaddr[10], enetaddr[11]);
 
 	return 0;
+#endif
+
 #else
+
 	u32 start_blocks;
 	u32 size_blocks;
 	u32 flash_type;
@@ -570,7 +640,7 @@ int get_eth_mac_address(uchar *enetaddr, uint no_of_macs)
 static void ipq40xx_set_ethmac_addr(void)
 {
 	int i, ret;
-	uchar enetaddr[CONFIG_IPQ_NO_MACS * 6];
+	uchar enetaddr[CONFIG_IPQ_NO_MACS * 6] = {};
 	uchar *mac_addr;
 	char ethaddr[16] = "ethaddr";
 	char mac[64];
